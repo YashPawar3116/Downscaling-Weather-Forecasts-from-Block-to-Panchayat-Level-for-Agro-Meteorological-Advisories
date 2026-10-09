@@ -1,10 +1,11 @@
 """Read-only development API over the repository's existing model outputs."""
 from __future__ import annotations
-import csv, json, mimetypes, os
+import csv, json, mimetypes, os, subprocess, shutil, socket, time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / 'models' / 'main_model' / 'stage2_direct_gp_training'
@@ -19,6 +20,24 @@ def number(value):
         return x if x == x and abs(x) != float('inf') else None
     except (TypeError, ValueError): return None
 def block_path(state,district,block): return MODEL/state/district/block
+def advisory_is_healthy(port):
+    try:
+        with urlopen(f'http://127.0.0.1:{port}/api/health',timeout=0.6) as response:
+            payload=json.loads(response.read().decode('utf-8'))
+            return response.status==200 and payload.get('success') is True
+    except Exception:return False
+def port_is_available(port):
+    try:
+        with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.25)
+            if probe.connect_ex(('127.0.0.1',port))==0:return False
+            probe.bind(('127.0.0.1',port))
+        return True
+    except OSError:return False
+def unused_local_port():
+    with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as probe:
+        probe.bind(('127.0.0.1',0))
+        return probe.getsockname()[1]
 def discover():
     result=[]
     if not MODEL.exists(): return result
@@ -70,12 +89,37 @@ def block_data(state,district,block):
             grouped[key]['name']=p.get('gp_name') or grouped[key]['name']
             grouped[key]['lat']=number(p.get('centroid_lat')); grouped[key]['lon']=number(p.get('centroid_lon'))
             grouped[key]['area']=number(p.get('area_km2'))
+    # The pipeline's merged master GeoJSON already carries the spatial summaries.
+    # Keep these when available; CSV exports are optional and are not emitted by
+    # every pipeline run.
+    for key, props in by_id.items():
+        item=grouped.get(key)
+        if item is None: continue
+        item['elevation']=number(props.get('elevation_mean'))
+        item['slope']=number(props.get('slope_mean'))
+        item['soilClay']=number(props.get('soil_clay_rootzone_0_30cm_pct'))
+        item['landCover']=props.get('dominant_landcover') or None
+    # Feature extraction is stored as GeoJSON in this repository. Read those
+    # published outputs when optional CSV exports are absent.
+    merged_path=gp_dir/'gp_merged_features.geojson'
+    if merged_path.exists():
+        try: features=json.loads(merged_path.read_text(encoding='utf-8-sig')).get('features',[])
+        except (OSError,json.JSONDecodeError): features=[]
+        for feature in features:
+            props=feature.get('properties',{}); item=grouped.get(str(props.get('gp_id','')))
+            if item is None: continue
+            for field, col in [('elevation','terrain__elevation_mean'),('slope','terrain__slope_mean'),('soilClay','soil__soil_clay_rootzone_0_30cm_pct')]:
+                value=number(props.get(col))
+                if value is not None: item[field]=value
+            item['landCover']=props.get('landcover__dominant_landcover') or item['landCover']
     for filename, field, col in [('gp_terrain_features.csv','elevation','elevation_mean'),('gp_terrain_features.csv','slope','slope_mean'),('gp_soil_features.csv','soilClay','soil_clay_rootzone_0_30cm_pct'),('gp_landcover_features.csv','landCover','dominant_landcover')]:
         p=gp_dir/filename
-        if not p.exists():continue
+        if not p.exists(): continue
         for row in rows(p):
             item=grouped.get(str(row.get('gp_id')))
-            if item is not None:item[field]=number(row.get(col)) if field!='landCover' else (row.get(col) or None)
+            if item is not None:
+                value=number(row.get(col)) if field!='landCover' else (row.get(col) or None)
+                if value is not None: item[field]=value
     gp_fc={'type':'FeatureCollection','features':[]}
     for feature in master.get('features',[]):
         if str(feature.get('properties',{}).get('gp_id','')) in grouped:gp_fc['features'].append(feature)
@@ -108,6 +152,8 @@ class Handler(BaseHTTPRequestHandler):
         data=json.dumps(value,separators=(',',':')).encode(); self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Access-Control-Allow-Origin','*'); self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
     def do_GET(self):
         u=urlparse(self.path)
+        if u.path.startswith('/agri-api/'):
+            return self.proxy_advisory('GET',u.path[len('/agri-api'):]+(('?'+u.query) if u.query else ''),None)
         if u.path=='/api/locations':return self.send_json(discover())
         if u.path=='/api/gp-location':
             gp_id=parse_qs(u.query).get('id',[''])[0]
@@ -129,10 +175,51 @@ class Handler(BaseHTTPRequestHandler):
         path=(DIST/rel).resolve()
         if not str(path).startswith(str(DIST.resolve())) or not path.is_file():return self.send_error(404)
         content=path.read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(path.name)[0] or 'application/octet-stream'); self.send_header('Content-Length',str(len(content))); self.end_headers(); self.wfile.write(content)
+    def do_POST(self):
+        u=urlparse(self.path)
+        if u.path.startswith('/agri-api/'):
+            body=self.rfile.read(int(self.headers.get('Content-Length','0')))
+            return self.proxy_advisory('POST',u.path[len('/agri-api'):]+(('?'+u.query) if u.query else ''),body)
+        return self.send_json({'error':'Not found'},404)
+    def proxy_advisory(self,method,path,body):
+        request=Request('http://127.0.0.1:'+os.environ.get('AGRI_ADVISORY_PORT','5000')+path,data=body,method=method,headers={'Content-Type':'application/json'})
+        try:
+            with urlopen(request,timeout=45) as response:
+                payload=response.read(); status=response.status
+        except Exception as exc:
+            payload=json.dumps({'success':False,'error':'Advisory service unavailable','message':str(exc)}).encode(); status=503
+        self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
     def log_message(self,fmt,*args):print('%s - %s'%(self.address_string(),fmt%args))
 
 if __name__=='__main__':
     host=os.environ.get('HOST','0.0.0.0')
     port=int(os.environ.get('PORT','8001'))
+    node=shutil.which('node')
+    advisory_dir=ROOT/'agri_advisory'
+    advisory_process=None
+    if node and (advisory_dir/'node_modules').is_dir():
+        advisory_port=int(os.environ.get('AGRI_ADVISORY_PORT','5000'))
+        if advisory_is_healthy(advisory_port):
+            print(f'Agri advisory API already running on port {advisory_port}; reusing it.')
+        else:
+            if not port_is_available(advisory_port):
+                occupied_port=advisory_port
+                advisory_port=unused_local_port()
+                print(f'Agri advisory port {occupied_port} is occupied by another service; using available port {advisory_port}.')
+            os.environ['AGRI_ADVISORY_PORT']=str(advisory_port)
+            env={**os.environ,'PORT':str(advisory_port)}
+            advisory_process=subprocess.Popen([node,'server.js'],cwd=advisory_dir,env=env)
+            for _ in range(50):
+                if advisory_is_healthy(advisory_port):break
+                if advisory_process.poll() is not None:break
+                time.sleep(0.1)
+            if not advisory_is_healthy(advisory_port):
+                print(f'Agri advisory API did not become ready on port {advisory_port}.')
+            else:
+                print(f'Agri advisory API started on port {advisory_port}')
+    else:
+        print('Agri advisory API is not installed; run npm install in agri_advisory to enable it.')
     print(f'HyperWeather API at http://{host}:{port} (repository: {ROOT})')
-    ThreadingHTTPServer((host,port),Handler).serve_forever()
+    try: ThreadingHTTPServer((host,port),Handler).serve_forever()
+    finally:
+        if advisory_process: advisory_process.terminate()
