@@ -966,15 +966,24 @@ def classify_source_parts(
                 f"GP ID {gp_id} produced empty source union."
             )
 
-        source_union_m = source_union
+        source_union_m = gpd.GeoSeries(
+            [source_union],
+            crs=gp.crs,
+        ).to_crs(metric_epsg).iloc[0]
 
-        # Analysis geometry is limited to the requested Block.
-        analysis_geom = polygonal_only(
+        # Clip in the same projected CRS used for metric area calculations.
+        analysis_geom_m = polygonal_only(
             safe_intersection(
                 source_union_m,
-                selected_block_geom,
+                selected_block_geom_m,
             )
         )
+        analysis_geom = None
+        if analysis_geom_m is not None and not analysis_geom_m.is_empty:
+            analysis_geom = gpd.GeoSeries(
+                [analysis_geom_m],
+                crs=f"EPSG:{metric_epsg}",
+            ).to_crs(4326).iloc[0]
 
         source_valid = all(
             g.is_valid
@@ -1008,9 +1017,9 @@ def classify_source_parts(
         )
 
         selected_area = (
-            float(analysis_geom.area)
-            if analysis_geom is not None
-            and not analysis_geom.is_empty
+            float(analysis_geom_m.area)
+            if analysis_geom_m is not None
+            and not analysis_geom_m.is_empty
             else 0.0
         )
 
@@ -1073,6 +1082,11 @@ def classify_source_parts(
             and not analysis_geom.is_empty
             else source_union
         )
+        analysis_valid = bool(
+            analysis_geom is not None
+            and not analysis_geom.is_empty
+            and analysis_geom.is_valid
+        )
 
         master_rows.append(
             {
@@ -1091,11 +1105,26 @@ def classify_source_parts(
                 "source_area_km2": (
                     source_area / 1_000_000.0
                 ),
+                "source_area_status": (
+                    "NEAR_ZERO" if source_area <= 1.0 else "MEANINGFUL"
+                ),
                 "analysis_area_km2": (
                     selected_area / 1_000_000.0
                 ),
+                "analysis_area_status": (
+                    "NEAR_ZERO"
+                    if selected_area <= 1.0
+                    else "MEANINGFUL"
+                ),
                 "analysis_coverage_pct_of_source": (
                     selected_pct
+                ),
+                "source_geometry_valid": source_valid,
+                "analysis_geometry_valid": analysis_valid,
+                "analysis_geometry_source": (
+                    "BLOCK_INTERSECTION"
+                    if analysis_valid
+                    else "OFFICIAL_SOURCE_FALLBACK"
                 ),
                 "source_geometry_wkt": source_wkt,
                 "analysis_geometry_type": (
@@ -1601,8 +1630,13 @@ def main():
         "geometry_status",
         "resolution",
         "source_area_km2",
+        "source_area_status",
         "analysis_area_km2",
+        "analysis_area_status",
         "analysis_coverage_pct_of_source",
+        "source_geometry_valid",
+        "analysis_geometry_valid",
+        "analysis_geometry_source",
         "analysis_geometry_type",
         "centroid_lat",
         "centroid_lon",

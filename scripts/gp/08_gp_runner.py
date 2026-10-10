@@ -131,7 +131,7 @@ STAGES: tuple[Stage, ...] = (
         raw_outputs=(
             "raw/sentinel1_observations.csv",
         ),
-        # Current V4 discovers ALL GP masters and is therefore unsafe here.
+        # V4 supports the runner's exact GP-master target contract.
         requires_target_only=True,
     ),
     Stage(
@@ -1060,57 +1060,7 @@ def main() -> int:
         ):
             continue
 
-        # --------------------------------------------------------------
-        # Sentinel-1 special safety gate
-        # --------------------------------------------------------------
-        if stage.key == "sentinel1":
-            title(
-                "STAGE 05 SAFETY CHECK - SENTINEL-1"
-            )
 
-            print(
-                "The current Sentinel-1 V4 collector is project-wide:"
-            )
-            print(
-                "it discovers every gp_master.geojson below gp/."
-            )
-            print()
-
-            print(
-                "It is therefore NOT allowed to be launched by the "
-                "target-locked universal runner until the child script "
-                "itself supports SIH26_TARGET_GP_MASTER."
-            )
-            print()
-
-            if (
-                raw_outputs_exist(
-                    stage,
-                    block_dir,
-                )
-                and stage_outputs_exist(
-                    stage,
-                    block_dir,
-                )
-            ):
-                success(
-                    "Existing Sentinel-1 outputs are present for "
-                    "the locked block."
-                )
-                info(
-                    "They are preserved. Sentinel-1 will NOT be rerun."
-                )
-                continue
-
-            error(
-                "Sentinel-1 is required for this block, but its current "
-                "collector is not target-aware."
-            )
-            error(
-                "Pipeline stopped before Sentinel-1 could accidentally "
-                "process other blocks."
-            )
-            return 1
 
         if not run_stage(
             stage,
