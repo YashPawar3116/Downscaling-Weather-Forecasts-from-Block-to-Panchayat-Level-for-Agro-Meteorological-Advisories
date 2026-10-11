@@ -2058,7 +2058,8 @@ function handleDashboardMessage(event) {
             map.getSource("block-boundaries")?.setData(BLOCK_BOUNDARIES);
             updateWeatherVisualization();
             if (message.selectedId) setSelectedGP(message.selectedId);
-            else fitToGramPanchayats();
+            // Keep the dashboard's default at the selected block extent.
+            fitToGramPanchayats();
         }
     } else if (message.type === "hyperweather:mode") {
         weatherDifferenceMode = message.mode === "difference";
@@ -2777,10 +2778,13 @@ function fitToGramPanchayats()
      * of every Gram Panchayat.
      */
 
-    const bbox =
-        turf.bbox(
-            WEATHER_DATA
-        );
+    const extent = BLOCK_BOUNDARIES.features?.length
+        ? BLOCK_BOUNDARIES
+        : GP_BOUNDARIES.features?.length
+            ? GP_BOUNDARIES
+            : WEATHER_DATA;
+
+    const bbox = turf.bbox(extent);
 
 
     map.fitBounds(
@@ -2795,20 +2799,11 @@ function fitToGramPanchayats()
 
         {
 
-            padding: {
+            padding: 52,
 
-                top: 100,
+            maxZoom: 11,
 
-                bottom: 100,
-
-                left: 100,
-
-                right: 320
-
-            },
-
-            duration:
-                1000
+            duration: 700
 
         }
 

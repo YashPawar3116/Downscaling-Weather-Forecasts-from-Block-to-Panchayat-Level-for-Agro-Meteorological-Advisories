@@ -16,7 +16,13 @@ const fmt = (n: number | null | undefined, digits = 1) => n == null || !Number.i
 const dateLabel = (date: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
 function FitBounds({ data, rows }: { data: BlockData; rows: GPWeather[] }) {
   const map = useMap()
-  useEffect(() => { const ids = new Set(rows.map(g => g.id)); const features = data.gpGeometry.features.filter(feature => ids.has(featureId(feature))); const bounds = L.geoJSON({ type: 'FeatureCollection', features } as never).getBounds(); if (bounds.isValid()) map.fitBounds(bounds, { padding: [34, 34], maxZoom: 12 }) }, [data, map, rows])
+  useEffect(() => {
+    // Default to the selected block, not the small set of neighbouring GP
+    // centroids, so the map opens at a useful district-scale extent.
+    const geometry = data.blockGeometry?.features.length ? data.blockGeometry : data.gpGeometry
+    const bounds = L.geoJSON(geometry as never).getBounds()
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [42, 42], maxZoom: 11 })
+  }, [data, map, rows])
   return null
 }
 function ComparisonMap({ data, rows, selected, select, full }: { data: BlockData; rows: GPWeather[]; selected: GPWeather; select: (gp: GPWeather) => void; full: () => void }) {

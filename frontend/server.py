@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / 'models' / 'main_model' / 'stage2_direct_gp_training'
@@ -83,6 +84,14 @@ def valid_forecast_output(location):
                 master_ids.add(str(props['gp_id']).strip())
         return bool(master_ids) and forecast_ids.issubset(master_ids)
     except (OSError,ValueError,KeyError,TypeError,json.JSONDecodeError):
+        return False
+def forecast_is_current(location):
+    """A displayed forecast must include today or a later India target date."""
+    folder=block_path(location['state'],location['district'],location['block'])
+    try:
+        target_dates={datetime.strptime(row['target_date'],'%Y-%m-%d').date() for row in rows(folder/'stage2_current_gp_forecast.csv') if row.get('target_date')}
+        return bool(target_dates) and max(target_dates)>=datetime.now(ZoneInfo('Asia/Kolkata')).date()
+    except (OSError,KeyError,TypeError,ValueError):
         return False
 def advisory_is_healthy(port):
     try:
@@ -210,7 +219,10 @@ def run_block_processing(job_id,location):
             if _processing_jobs_by_location.get(location_key(location['state'],location['district'],location['block']))==job_id:
                 _processing_jobs_by_location.pop(location_key(location['state'],location['district'],location['block']),None)
         return
-    command=[sys.executable,'-u',str(ROOT/'run_pipeline.py'),'--state',location['state'],'--district',location['district'],'--block',location['block'],'--to-stage','stage2']
+    # A stale forecast must refresh the upstream current-weather inputs as
+    # well as Stage 2; otherwise the orchestrator would simply reuse its old
+    # completed artifacts.
+    command=[sys.executable,'-u',str(ROOT/'run_pipeline.py'),'--state',location['state'],'--district',location['district'],'--block',location['block'],'--to-stage','stage2','--force']
     try:
         process=subprocess.Popen(command,cwd=ROOT,env={**os.environ,'PYTHONIOENCODING':'utf-8'},stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace',bufsize=1)
         failure_hint=None
@@ -443,7 +455,7 @@ class Handler(BaseHTTPRequestHandler):
             if location is None:
                 return self.send_json({'error':'The selected state, district and block are not present in the official location registry.'},404)
             try:
-                if valid_forecast_output(location):
+                if valid_forecast_output(location) and forecast_is_current(location):
                     data=block_data(location['state'],location['district'],location['block'])
                 else:
                     data=None
