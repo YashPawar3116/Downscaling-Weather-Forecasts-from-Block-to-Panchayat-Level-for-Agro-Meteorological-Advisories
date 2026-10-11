@@ -9,6 +9,10 @@ pyproj
 rasterio
 xarray
 netCDF4
+h5netcdf
+h5py
 cfgrib
 scikit-learn
 joblib
+earthengine-api
+cdsapi
