@@ -1109,6 +1109,7 @@ let showBlockBoundary = true;
 let currentWeatherMode =
     "temperature";
 
+let weatherDifferenceMode = false;
 
 let currentBaseMap =
     "satellite";
@@ -1816,7 +1817,7 @@ function addApplicationLayers() {
             source: "gp-boundaries",
             layout: {
                 "text-field": ["coalesce", ["get", "gp_name"], ["get", "name"]],
-                "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+                "text-font": ["Noto Sans Regular"],
                 "text-size": ["interpolate", ["linear"], ["zoom"], 8, 8, 10, 10, 13, 12],
                 "text-anchor": "center",
                 "text-max-width": 9,
@@ -2059,6 +2060,9 @@ function handleDashboardMessage(event) {
             if (message.selectedId) setSelectedGP(message.selectedId);
             else fitToGramPanchayats();
         }
+    } else if (message.type === "hyperweather:mode") {
+        weatherDifferenceMode = message.mode === "difference";
+        updateWeatherVisualization();
     } else if (message.type === "hyperweather:layer") {
         currentWeatherMode = String(message.layer || "temperature").toLowerCase();
         updateWeatherVisualization();
@@ -2245,10 +2249,17 @@ function updateWeatherVisualization() {
     let low = samples.length ? Math.min(...samples) : style.min;
     let high = samples.length ? Math.max(...samples) : style.max;
     if (high === low) { low -= 0.5; high += 0.5; }
-    const colors = currentWeatherMode === "temperature" ? ["#fff04a", "#ffad1f", "#ed401b"] :
+    let colors = currentWeatherMode === "temperature" ? ["#fff04a", "#ffad1f", "#ed401b"] :
         currentWeatherMode === "rainfall" ? ["#e8f5ff", "#318ad8", "#092e87"] :
         currentWeatherMode === "humidity" ? ["#efff9a", "#41c9a4", "#1556c0"] : ["#dcfce7", "#16a34a", "#633bb4"];
-    const middle = low + (high - low) / 2;
+    let middle = low + (high - low) / 2;
+    if (weatherDifferenceMode && samples.length) {
+        const maximumChange = Math.max(0.1, ...samples.map(value => Math.abs(value)));
+        low = -maximumChange;
+        middle = 0;
+        high = maximumChange;
+        colors = ["#c85539", "#f4f3e9", "#176dc1"];
+    }
     const expression = ["interpolate", ["linear"], ["coalesce", ["get", property], low], low, colors[0], middle, colors[1], high, colors[2]];
     map.setPaintProperty("weather-points", "circle-color", expression);
     map.setPaintProperty("weather-points", "circle-radius", ["interpolate", ["linear"], ["zoom"], 7, 7, 10, 10, 13, 13, 16, 16]);

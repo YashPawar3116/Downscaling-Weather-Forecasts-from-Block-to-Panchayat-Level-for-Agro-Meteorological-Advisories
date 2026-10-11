@@ -6,43 +6,14 @@ import { ArrowLeft, CalendarDays, Download, Expand, MapPin, Users, CloudRain, Da
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getBlock } from './services'
 import type { BlockData, ForecastDay, GPWeather, LocationOption } from './types'
+import { direction, distanceKm, featureId, neighboringPanchayats, sharedBoundaryLength } from './spatial'
+import { useLanguage } from './language'
 import './comparison-dashboard.css'
 
 const COLORS = ['#11b8c7', '#f04758', '#ffd23f', '#6aca55', '#ab78f2']
+const locationKey = (location: LocationOption) => JSON.stringify([location.state, location.district, location.block])
 const fmt = (n: number | null | undefined, digits = 1) => n == null || !Number.isFinite(n) ? '—' : n.toFixed(digits)
 const dateLabel = (date: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
-const distanceKm = (a: GPWeather, b: GPWeather) => {
-  if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) return null
-  const rad = (d: number) => d * Math.PI / 180
-  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon)
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
-}
-const featureId = (feature: GeoJSON.Feature) => String(feature.properties?.gp_id ?? feature.properties?.id ?? feature.id ?? '')
-const boundaryEdges = (feature?: GeoJSON.Feature) => {
-  const geometry = feature?.geometry
-  if (!geometry || !('coordinates' in geometry)) return new Set<string>()
-  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.type === 'MultiPolygon' ? geometry.coordinates : []
-  const edges = new Set<string>()
-  for (const polygon of polygons) for (const ring of polygon) for (let i = 1; i < ring.length; i++) {
-    const point = (p: number[]) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`
-    const ends = [point(ring[i - 1]), point(ring[i])].sort()
-    edges.add(`${ends[0]}|${ends[1]}`)
-  }
-  return edges
-}
-const sharedBoundaryLength = (a: GeoJSON.Feature | undefined, b: GeoJSON.Feature | undefined) => {
-  const edgesA = boundaryEdges(a), edgesB = boundaryEdges(b)
-  let shared = 0
-  for (const edge of edgesA) if (edgesB.has(edge)) shared++
-  return shared
-}
-const direction = (a: GPWeather, b: GPWeather) => {
-  if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) return '—'
-  const y = Math.sin((b.lon - a.lon) * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180)
-  const x = Math.cos(a.lat * Math.PI / 180) * Math.sin(b.lat * Math.PI / 180) - Math.sin(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.cos((b.lon - a.lon) * Math.PI / 180)
-  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round((Math.atan2(y, x) * 180 / Math.PI + 360) % 360 / 45) % 8]
-}
 function FitBounds({ data, rows }: { data: BlockData; rows: GPWeather[] }) {
   const map = useMap()
   useEffect(() => { const ids = new Set(rows.map(g => g.id)); const features = data.gpGeometry.features.filter(feature => ids.has(featureId(feature))); const bounds = L.geoJSON({ type: 'FeatureCollection', features } as never).getBounds(); if (bounds.isValid()) map.fitBounds(bounds, { padding: [34, 34], maxZoom: 12 }) }, [data, map, rows])
@@ -58,30 +29,22 @@ function density(values: number[]) {
 }
 
 export default function ComparisonDashboard({ locations }: { locations: LocationOption[] }) {
+  const { t } = useLanguage()
   const [params, setParams] = useSearchParams()
-  const initial = locations.find(x => x.block === params.get('block')) ?? locations.find(x => x.state === 'Maharashtra') ?? locations[0]
+  const initial = locations.find(x => x.state === params.get('state') && x.district === params.get('district') && x.block === params.get('block'))
+    ?? locations.find(x => x.block === params.get('block'))
+    ?? locations.find(x => x.state === 'Maharashtra') ?? locations[0]
   const [location, setLocation] = useState(initial)
   const [data, setData] = useState<BlockData | null>(null)
   const [selectedId, setSelectedId] = useState(params.get('gp') ?? '')
   const [error, setError] = useState('')
-  useEffect(() => { let live = true; setData(null); setError(''); getBlock(location.state, location.district, location.block).then(d => { if (live) { setData(d); setSelectedId(id => d.gps.some(g => g.id === id) ? id : d.gps[0]?.id ?? '') } }).catch(e => live && setError(e.message)); return () => { live = false } }, [location])
+  const [processingMessage, setProcessingMessage] = useState('')
+  useEffect(() => { let live = true; setData(null); setError(''); setProcessingMessage(''); getBlock(location.state, location.district, location.block, status => live && setProcessingMessage(status.message)).then(d => { if (live) { setData(d); setSelectedId(id => d.gps.some(g => g.id === id) ? id : d.gps[0]?.id ?? '') } }).catch(e => live && setError(e.message)); return () => { live = false } }, [location])
   const gps = data?.gps ?? []
   const selected = gps.find(g => g.id === selectedId) ?? gps[0]
   const rows = useMemo(() => {
     if (!selected) return []
-    const features = data?.gpGeometry.features ?? []
-    const selectedFeature = features.find(f => featureId(f) === selected.id)
-    const candidates = gps.filter(g => g.id !== selected.id).map(g => {
-      const feature = features.find(f => featureId(f) === g.id)
-      return { gp: g, feature, shared: sharedBoundaryLength(selectedFeature, feature), distance: distanceKm(selected, g) }
-    })
-    const touching = candidates.filter(item => item.shared > 0).sort((a, b) => b.shared - a.shared || (a.distance ?? Infinity) - (b.distance ?? Infinity))
-    const chosen = [...touching.slice(0, 4)]
-    if (chosen.length < 4) {
-      const used = new Set(chosen.map(item => item.gp.id))
-      chosen.push(...candidates.filter(item => !used.has(item.gp.id)).sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)).slice(0, 4 - chosen.length))
-    }
-    return [selected, ...chosen.map(item => item.gp)]
+    return neighboringPanchayats(gps, data?.gpGeometry ?? { type: 'FeatureCollection', features: [] }, selected)
   }, [gps, selected, data?.gpGeometry])
   const forecastDates = selected?.forecast.map(f => f.date) ?? []
   const [startDate, setStartDate] = useState('')
@@ -94,19 +57,19 @@ export default function ComparisonDashboard({ locations }: { locations: Location
   const densityChart = Array.from({ length: 41 }, (_, i) => { const x = kdes[0]?.values[i]?.x ?? i; return Object.fromEntries([['rain', x], ...kdes.map(({ gp, values }) => [gp.id, values[i]?.y ?? null])]) })
   const metricRows = rows.map(g => { const fs = g.forecast.slice(startIndex, startIndex + 7); const temps = fs.map(f => f.temperature).filter((x): x is number => x != null); const sum = (key: 'rainfall' | 'humidity' | 'wind') => fs.map(f => f[key]).filter((x): x is number => x != null).reduce((a, b) => a + b, 0); const avg = (key: 'humidity' | 'wind') => { const values = fs.map(f => f[key]).filter((x): x is number => x != null); return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null }; return { gp: g, max: temps.length ? Math.max(...temps) : null, min: temps.length ? Math.min(...temps) : null, dayRain: g.forecast[startIndex]?.rainfall ?? null, totalRain: sum('rainfall'), humidity: avg('humidity'), windKmh: avg('wind') == null ? null : avg('wind')! * 3.6 } })
   const onSelect = (gp: GPWeather) => { setSelectedId(gp.id); setParams({ block: location.block, gp: gp.id }) }
-  const download = () => { const header = ['Panchayat', 'Direction', 'Distance km', 'Max temp C', 'Min temp C', 'Day 1 rainfall mm', '7 day rainfall mm', 'Humidity %', 'Wind km/h']; const lines = metricRows.map(r => [r.gp.name, direction(selected!, r.gp), fmt(distanceKm(selected!, r.gp), 2), fmt(r.max), fmt(r.min), fmt(r.dayRain), fmt(r.totalRain), fmt(r.humidity), fmt(r.windKmh)].map(x => `"${x}"`).join(',')); const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'panchayat-weather-comparison.csv'; a.click(); URL.revokeObjectURL(url) }
+  const download = () => { const header = ['Panchayat', 'Direction', 'Distance km', 'Max temp C', 'Min temp C', 'Day 1 rainfall mm', '7 day rainfall mm', 'Humidity %', 'Wind km/h']; const lines = metricRows.map(r => [r.gp.name, direction(selected!, r.gp) ?? '—', fmt(distanceKm(selected!, r.gp), 2), fmt(r.max), fmt(r.min), fmt(r.dayRain), fmt(r.totalRain), fmt(r.humidity), fmt(r.windKmh)].map(x => `"${x}"`).join(',')); const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'panchayat-weather-comparison.csv'; a.click(); URL.revokeObjectURL(url) }
   const dayPeak = metricRows.reduce<(typeof metricRows)[number] | null>((best, row) => !best || (row.dayRain ?? -Infinity) > (best.dayRain ?? -Infinity) ? row : best, null)
-  return <div className="page comparison-page"><div className="comparison-frame">{error ? <div className="card comparison-error">Forecast data unavailable: {error}</div> : !data || !selected ? <div className="card comparison-loading">Loading calculated Panchayat forecasts…</div> : <>
-    <header className="comparison-heading"><Link to="/dashboard" className="comparison-back"><ArrowLeft size={17}/> Dashboard</Link><div className="comparison-title-mark"><MapPin/></div><div className="comparison-title"><h1>Cross-Panchayat Weather Comparison</h1><p>{location.block} Block · Nearby Panchayat analysis · Model output · Updated {data.updatedAt ? new Date(data.updatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'latest available run'}</p></div><label className="comparison-date"><CalendarDays size={16}/><select value={startDate} aria-label="Forecast start date" onChange={e => setStartDate(e.target.value)}>{forecastDates.map(date => <option value={date} key={date}>{dateLabel(date)}</option>)}</select></label></header>
-    <div className="comparison-location-select"><label>Block<select value={location.block} onChange={e => setLocation(locations.find(x => x.block === e.target.value) ?? location)}>{locations.map(x => <option value={x.block} key={`${x.state}-${x.district}-${x.block}`}>{x.block}, {x.district}</option>)}</select></label><label>Selected Panchayat<select value={selectedId} onChange={e => onSelect(gps.find(g => g.id === e.target.value) ?? selected)}>{gps.map(g => <option value={g.id} key={g.id}>{g.name}</option>)}</select></label></div>
+  return <div className="page comparison-page"><div className="comparison-frame">{error ? <div className="card comparison-error">{t('Forecast data unavailable')}: {error}</div> : !data || !selected ? <div className="card comparison-loading">{processingMessage || t('Loading calculated Panchayat forecasts...')}</div> : <>
+    <header className="comparison-heading"><Link to="/dashboard" className="comparison-back"><ArrowLeft size={17}/> {t('Dashboard')}</Link><div className="comparison-title-mark"><MapPin/></div><div className="comparison-title"><h1>{t('Cross-Panchayat Weather Comparison')}</h1><p>{location.block} {t('Block')} · {t('Nearby Panchayat analysis')} · {t('Model output')} · {t('Updated')} {data.updatedAt ? new Date(data.updatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : t('latest available run')}</p></div><label className="comparison-date"><CalendarDays size={16}/><select value={startDate} aria-label={t('Forecast start date')} onChange={e => setStartDate(e.target.value)}>{forecastDates.map(date => <option value={date} key={date}>{dateLabel(date)}</option>)}</select></label></header>
+    <div className="comparison-location-select"><label>{t('Block')}<select value={locationKey(location)} onChange={e => setLocation(locations.find(x => locationKey(x) === e.target.value) ?? location)}>{locations.map(x => <option value={locationKey(x)} key={locationKey(x)}>{x.block}, {x.district}</option>)}</select></label><label>{t('Selected Panchayat')}<select value={selectedId} onChange={e => onSelect(gps.find(g => g.id === e.target.value) ?? selected)}>{gps.map(g => <option value={g.id} key={g.id}>{g.name}</option>)}</select></label></div>
     <div className="comparison-summary"><article><span><MapPin/></span><div><small>Selected Panchayat</small><b>{selected.name}</b><p>{location.block} Block, {location.district}, {location.state}</p></div></article><article><span><Users/></span><div><small>Nearby Panchayats</small><b>{Math.max(0, rows.length - 1)}</b><p>{rows.slice(1).map(g => g.name).join(', ') || 'No nearby GP forecast available'}</p></div></article><article><span><CalendarDays/></span><div><small>Forecast horizon</small><b>{days.length} Days</b><p>{days.length ? `${dateLabel(days[0].date)} – ${dateLabel(days[days.length - 1].date)}` : 'No calculated dates'}</p></div></article><article><span><Database/></span><div><small>Forecast source</small><b>Model output</b><p>Existing Panchayat level calculation</p></div></article></div>
     {data.updatedAt && forecastDates[0] && new Date(`${forecastDates[0]}T12:00:00Z`) < new Date(new Date().toISOString().slice(0, 10)) && <div className="comparison-stale">Showing the latest calculated model run ({dateLabel(forecastDates[0])} onwards). These dates are historical and are not presented as live forecasts.</div>}
     <div className="comparison-charts"><ComparisonMap data={data} rows={rows} selected={selected} select={onSelect} full={() => document.getElementById('comparison-map')?.requestFullscreen?.()}/>
-      <section className="comparison-panel"><header><b>🌧️ Day-1 Rainfall Comparison</b><small>{forecastDates[startIndex] ? dateLabel(forecastDates[startIndex]) : 'No forecast date'}</small></header><div className="comparison-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name" tick={{ fontSize: 11 }}/><YAxis unit=" mm" tick={{ fontSize: 11 }}/><Tooltip formatter={(v) => [`${fmt(Number(v))} mm`, 'Rainfall']}/><Bar dataKey="rainfall" radius={[3, 3, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}</Bar></BarChart></ResponsiveContainer></div></section>
-      <section className="comparison-panel"><header><b>📈 7-Day Rainfall Trend</b><small>{days.length ? `${dateLabel(days[0].date)} – ${dateLabel(days[days.length - 1].date)}` : 'No forecast dates'}</small></header><div className="comparison-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="day" tick={{ fontSize: 11 }}/><YAxis unit=" mm" tick={{ fontSize: 11 }}/><Tooltip/><Legend wrapperStyle={{ fontSize: 11 }}/>{rows.map((g, i) => <Line key={g.id} dataKey={g.id} name={g.name} type="monotone" stroke={COLORS[i % COLORS.length]} strokeWidth={2.5} connectNulls={false} dot={{ r: 4 }}/>)}</LineChart></ResponsiveContainer></div></section>
-      <section className="comparison-panel"><header><b>📊 Rainfall Distribution — 7-Day Forecast</b><small>Kernel density estimated from calculated daily values</small></header><div className="comparison-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={densityChart}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="rain" type="number" domain={['dataMin', 'dataMax']} unit=" mm" tick={{ fontSize: 11 }}/><YAxis tick={{ fontSize: 11 }}/><Tooltip/><Legend wrapperStyle={{ fontSize: 11 }}/>{rows.map((g, i) => <Line key={g.id} dataKey={g.id} name={g.name} type="monotone" stroke={COLORS[i % COLORS.length]} strokeWidth={2.5} dot={false}/>)}</LineChart></ResponsiveContainer></div></section>
+      <section className="comparison-panel"><header><b>🌧️ {t('Day-1 Rainfall Comparison')}</b><small>{forecastDates[startIndex] ? dateLabel(forecastDates[startIndex]) : t('No forecast date')}</small></header><div className="comparison-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name" tick={{ fontSize: 11 }}/><YAxis unit=" mm" tick={{ fontSize: 11 }}/><Tooltip formatter={(v) => [`${fmt(Number(v))} mm`, t('Rainfall')]}/><Bar dataKey="rainfall" radius={[3, 3, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}</Bar></BarChart></ResponsiveContainer></div></section>
+      <section className="comparison-panel"><header><b>📈 {t('7-Day Rainfall Trend')}</b><small>{days.length ? `${dateLabel(days[0].date)} – ${dateLabel(days[days.length - 1].date)}` : t('No forecast dates')}</small></header><div className="comparison-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="day" tick={{ fontSize: 11 }}/><YAxis unit=" mm" tick={{ fontSize: 11 }}/><Tooltip/><Legend wrapperStyle={{ fontSize: 11 }}/>{rows.map((g, i) => <Line key={g.id} dataKey={g.id} name={g.name} type="monotone" stroke={COLORS[i % COLORS.length]} strokeWidth={2.5} connectNulls={false} dot={{ r: 4 }}/>)}</LineChart></ResponsiveContainer></div></section>
+      <section className="comparison-panel"><header><b>📊 {t('Rainfall Distribution — 7-Day Forecast')}</b><small>{t('Kernel density estimated from calculated daily values')}</small></header><div className="comparison-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={densityChart}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="rain" type="number" domain={['dataMin', 'dataMax']} unit=" mm" tick={{ fontSize: 11 }}/><YAxis tick={{ fontSize: 11 }}/><Tooltip/><Legend wrapperStyle={{ fontSize: 11 }}/>{rows.map((g, i) => <Line key={g.id} dataKey={g.id} name={g.name} type="monotone" stroke={COLORS[i % COLORS.length]} strokeWidth={2.5} dot={false}/>)}</LineChart></ResponsiveContainer></div></section>
     </div>
-    <section className="comparison-panel comparison-table-panel"><header><b>📋 Panchayat-wise Weather Comparison</b><button className="comparison-download" onClick={download}><Download size={17}/> Download CSV</button></header><div className="comparison-table-scroll"><table><thead><tr><th>Panchayat</th><th>Direction</th><th>Distance (km)</th><th>Max Temperature (°C)</th><th>Min Temperature (°C)</th><th>Day-1 Rainfall (mm)</th><th>7-Day Rainfall Total (mm)</th><th>Humidity (%)</th><th>Wind Speed (km/h)</th></tr></thead><tbody>{metricRows.map((r, i) => <tr key={r.gp.id}><td><button className="comparison-name" onClick={() => onSelect(r.gp)}>{r.gp.name}{i === 0 && <em>Selected</em>}</button></td><td>{i === 0 ? '—' : direction(selected, r.gp)}</td><td>{i === 0 ? '—' : fmt(distanceKm(selected, r.gp), 2)}</td><td>{fmt(r.max)}</td><td>{fmt(r.min)}</td><td>{fmt(r.dayRain)}</td><td>{fmt(r.totalRain)}</td><td>{fmt(r.humidity)}</td><td>{fmt(r.windKmh)}</td></tr>)}</tbody></table></div></section>
+    <section className="comparison-panel comparison-table-panel"><header><b>📋 Panchayat-wise Weather Comparison</b><button className="comparison-download" onClick={download}><Download size={17}/> Download CSV</button></header><div className="comparison-table-scroll"><table><thead><tr><th>Panchayat</th><th>Direction</th><th>Distance (km)</th><th>Max Temperature (°C)</th><th>Min Temperature (°C)</th><th>Day-1 Rainfall (mm)</th><th>7-Day Rainfall Total (mm)</th><th>Humidity (%)</th><th>Wind Speed (km/h)</th></tr></thead><tbody>{metricRows.map((r, i) => <tr key={r.gp.id}><td><button className="comparison-name" onClick={() => onSelect(r.gp)}>{r.gp.name}{i === 0 && <em>Selected</em>}</button></td><td>{i === 0 ? '—' : direction(selected, r.gp) ?? '—'}</td><td>{i === 0 ? '—' : fmt(distanceKm(selected, r.gp), 2)}</td><td>{fmt(r.max)}</td><td>{fmt(r.min)}</td><td>{fmt(r.dayRain)}</td><td>{fmt(r.totalRain)}</td><td>{fmt(r.humidity)}</td><td>{fmt(r.windKmh)}</td></tr>)}</tbody></table></div></section>
     <section className="comparison-panel comparison-7day"><header><b>🗓️ 7-Day Forecast by Panchayat</b><small>Daily values from the selected model run</small></header><div className="comparison-table-scroll"><table><thead><tr><th>Panchayat</th>{days.map((d, i) => <th key={d.date}>D{i + 1}<small>{dateLabel(d.date)}</small></th>)}</tr></thead><tbody>{rows.map(g => <tr key={g.id}><td><button className="comparison-name" onClick={() => onSelect(g)}>{g.name}</button></td>{days.map((d, i) => { const f: ForecastDay | undefined = g.forecast[startIndex + i]; return <td key={d.date}>T {fmt(f?.temperature, 1)}°<br/>R {fmt(f?.rainfall, 1)} mm<br/>RH {fmt(f?.humidity, 0)}%<br/>W {f?.wind == null ? '—' : `${fmt(f.wind * 3.6, 1)} km/h`}</td> })}</tr>)}</tbody></table></div></section>
     <div className="comparison-insights"><h2>💡 Key Insights <small>(Neighbourhood comparison)</small></h2><article><CloudRain/><div><b>{dayPeak?.gp.name === selected.name ? 'Highest Day-1 rainfall at selected Panchayat' : `Higher rainfall in ${dayPeak?.gp.name ?? 'available Panchayats'}`}</b><p>{dayPeak ? `${fmt(dayPeak.dayRain)} mm on ${forecastDates[startIndex] ? dateLabel(forecastDates[startIndex]) : 'selected day'}, compared across ${rows.length} calculated Panchayat forecasts.` : 'Rainfall values are not present in this model output.'}</p></div></article><article><MapPin/><div><b>Temperature comparison uses calculated daily extremes</b><p>{metricRows.length ? `${fmt(Math.min(...metricRows.map(r => r.min).filter((n): n is number => n != null)), 1)}–${fmt(Math.max(...metricRows.map(r => r.max).filter((n): n is number => n != null)), 1)} °C across this comparison.` : 'Temperature values are unavailable.'}</p></div></article><article><Users/><div><b>Humidity and wind reflect the available run</b><p>Daily values above come directly from the existing Panchayat forecast output.</p></div></article></div>
   </>}</div></div>

@@ -35,6 +35,7 @@ export default function FarmDashboard({ locations }: { locations: LocationOption
   const [search, setSearch] = useState('')
   const [dialog, setDialog] = useState<'help' | 'settings' | 'notifications' | null>(null)
   const [error, setError] = useState('')
+  const [processingMessage, setProcessingMessage] = useState('')
   const [question, setQuestion] = useState('')
   const [assistantAnswer, setAssistantAnswer] = useState('')
   const [assistantError, setAssistantError] = useState('')
@@ -45,8 +46,8 @@ export default function FarmDashboard({ locations }: { locations: LocationOption
   useEffect(() => { const timer = window.setInterval(() => setTodayKey(indiaDateKey()), 60_000); return () => window.clearInterval(timer) }, [])
   useEffect(() => {
     let active = true
-    setData(null); setError('')
-    getBlock(location.state, location.district, location.block).then(next => {
+    setData(null); setError(''); setProcessingMessage('')
+    getBlock(location.state, location.district, location.block, status => active && setProcessingMessage(status.message)).then(next => {
       if (active) { setData(next); setGpId(id => next.gps.some(g => g.id === id) ? id : next.gps[0]?.id ?? '') }
     }).catch(e => active && setError(e.message))
     return () => { active = false }
@@ -113,7 +114,7 @@ export default function FarmDashboard({ locations }: { locations: LocationOption
       <div className="farm-language" aria-label="Dashboard language">{languages.map(code => <button key={code} className={language === code ? 'active' : ''} onClick={() => setLanguage(code)}>{code === 'en' ? 'EN' : code === 'mr' ? 'मराठी' : 'हिंदी'}</button>)}</div>
       <div className="farm-head-actions"><button className="farm-bell" onClick={() => setDialog(dialog === 'notifications' ? null : 'notifications')} aria-label="Notifications"><Bell/><i>3</i></button><div className="farm-user"><b>A</b><span><small>Welcome</small><strong>Anil Patil</strong><small>Farmer</small></span></div><button className="farm-action-button" onClick={() => setDialog('help')}><Headphones size={17}/>{t.help}</button><button className="farm-action-button" onClick={() => setDialog('settings')}><Settings size={17}/>{t.settings}</button></div>
     </header>
-    {error ? <div className="farm-error card"><b>Forecast unavailable</b><p>{error}</p><button onClick={() => setLocation({ ...location })}>Try again</button></div> : !data || !gp ? <div className="farm-loading card">Loading your local forecast…</div> : <>
+    {error ? <div className="farm-error card"><b>Forecast unavailable</b><p>{error}</p><button onClick={() => setLocation({ ...location })}>Try again</button></div> : !data || !gp ? <div className="farm-loading card">{processingMessage || 'Loading your local forecast...'}</div> : <>
       <div className="farm-dashboard-grid">
         <div className="farm-left-column">
           <section className="farm-current-widget"><div className="farm-widget-head"><div><span className="eyebrow">{forecastIsLatestAvailable ? 'LATEST CALCULATED WEATHER' : t.current}</span><b>{gp.name}, {location.block}</b></div><span className="farm-forecast-badge"><i/>{forecastIsLatestAvailable ? `Latest available · ${current ? dayDate(current.date) : ''}` : 'Model forecast'}</span></div><div className="farm-weather-hero"><Sun/><div><strong>{value(current?.temperature, 1)}°C</strong><b>{current?.temperature != null && current.temperature >= 35 ? 'Warm conditions' : forecastIsLatestAvailable ? 'Latest model output' : 'Local forecast'}</b><small>{forecastIsLatestAvailable ? 'Latest available · ' : 'Day 1 · '}{current ? dayDate(current.date) : 'Date unavailable'}</small></div></div><div className="farm-current-metrics"><div><Droplets/><b>{value(current?.humidity)}%</b><small>{t.humidity}</small></div><div><CloudRain/><b>{value(current?.rainfall, 1)} mm</b><small>{t.rainfall}</small></div><div><Wind/><b>{current?.wind == null ? '—' : `${value(current.wind * 3.6)} km/h`}</b><small>{t.wind}</small></div><div><Wind/><b>—</b><small>Direction</small></div></div><label className="farm-gp-select">Gram Panchayat<select value={gp.id} onChange={e => setGpId(e.target.value)}>{data.gps.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label></section>

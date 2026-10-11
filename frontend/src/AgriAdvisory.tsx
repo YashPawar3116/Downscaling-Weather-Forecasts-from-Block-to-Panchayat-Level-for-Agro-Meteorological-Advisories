@@ -6,6 +6,15 @@ export type Language = 'en' | 'mr' | 'hi'
 type Result = { advisory: { title: string; summary: string; actions: string[]; avoid: string[]; evidence: string[]; risk_level: string; source: string }; risk_assessment: { reason: string; confidence: number } }
 const crops = ['Onion', 'Sugarcane', 'Maize', 'Pomegranate', 'Soybean']
 const indiaDateKey = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+const fallbackAdvisory = (weather: { temperature: number; humidity: number; forecast_rainfall: number; wind_speed: number }): Result => {
+  const wet = weather.forecast_rainfall >= 20
+  const windy = weather.wind_speed >= 25
+  const hot = weather.temperature >= 35
+  const humid = weather.humidity >= 80
+  const condition = wet ? 'Rainfall watch' : windy ? 'Wind watch' : hot ? 'Heat watch' : humid ? 'Humidity watch' : 'Routine weather outlook'
+  const guidance = wet ? 'Review field drainage and postpone irrigation where soil is already wet.' : windy ? 'Secure supports and avoid spraying during stronger winds.' : hot ? 'Check soil moisture and irrigate during cooler hours where needed.' : humid ? 'Monitor crops for moisture-related disease and improve field airflow.' : 'Continue normal field monitoring and follow the latest local weather updates.'
+  return { advisory: { title: condition, summary: guidance, actions: [guidance], avoid: [], evidence: ['Generated from the available seven-day forecast.'], risk_level: wet || windy || hot ? 'MEDIUM' : 'LOW', source: 'forecast_fallback' }, risk_assessment: { reason: 'The local advisory service is unavailable, so this guidance uses the current forecast.', confidence: 0.7 } }
+}
 
 export default function AgriAdvisory({ gp, language, onLanguageChange, crop, onCropChange, dashboard = false }: { gp: GPWeather; language?: Language; onLanguageChange?: (language: Language) => void; crop?: string; onCropChange?: (crop: string) => void; dashboard?: boolean }) {
   const [localLanguage, setLocalLanguage] = useState<Language>('en')
@@ -30,11 +39,12 @@ export default function AgriAdvisory({ gp, language, onLanguageChange, crop, onC
     let active = true
     if (!forecast.length) { setBusy(false); setResult(null); setError('No calculated forecast is available for this location.'); return () => { active = false } }
     setBusy(true); setError('')
+    const weather = { temperature: current.temperature ?? 0, humidity: current.humidity ?? 0, rainfall: current.rainfall ?? 0, forecast_rainfall: rainfall, wind_speed: (current.wind ?? 0) * 3.6, forecast_hours: 168 }
     fetch('/agri-api/api/advisory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       gp_id: gp.id, gp_name: gp.name, crop: `${activeCrop} (${stage})`, language: activeLanguage, audience: 'farmer',
-      weather: { temperature: current.temperature ?? 0, humidity: current.humidity ?? 0, rainfall: current.rainfall ?? 0, forecast_rainfall: rainfall, wind_speed: (current.wind ?? 0) * 3.6, forecast_hours: 168 }
+      weather
     }) }).then(async response => { const payload = await response.json(); if (!response.ok || !payload.success) throw new Error(payload.message || payload.error || 'Advisory service is unavailable'); if (active) setResult(payload) })
-      .catch(e => { if (active) { setResult(null); setError(e.message) } }).finally(() => active && setBusy(false))
+      .catch(() => { if (active) { setResult(fallbackAdvisory(weather)); setError('') } }).finally(() => active && setBusy(false))
     return () => { active = false }
   }, [gp, activeCrop, stage, activeLanguage, todayKey, usingLatestRun])
   const advisory = result?.advisory
