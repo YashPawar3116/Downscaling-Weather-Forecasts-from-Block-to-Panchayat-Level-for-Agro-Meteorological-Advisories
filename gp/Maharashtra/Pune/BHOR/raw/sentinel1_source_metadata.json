@@ -1,0 +1,32 @@
+{
+  "stage": "SIH26_STAGE_5_SENTINEL1_GP",
+  "collection": "COPERNICUS/S1_GRD",
+  "master_path": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\gp\\Maharashtra\\Pune\\BHOR\\processed\\gp_master.geojson",
+  "fetch_mode": "INCREMENTAL",
+  "fetch_start": "2026-09-26",
+  "fetch_end": "2026-10-11",
+  "initial_years": 5,
+  "incremental_rule": "latest stored acquisition date + 1 day",
+  "date_chunk_days": 365,
+  "gp_batch_size": 8,
+  "scale_m": 10,
+  "instrument_mode": "IW",
+  "required_polarizations": [
+    "VV",
+    "VH"
+  ],
+  "required_resolution_meters": 10,
+  "synthetic": false,
+  "imputation": false,
+  "raw_rows": 17901,
+  "unique_gps": 153,
+  "unique_images": 117,
+  "last_successful_acquisition_date": "2026-09-25",
+  "status": "SUCCESS",
+  "notes": [
+    "Raw GP\u00d7image observations are retained.",
+    "Ascending and descending orbit observations are not silently merged at acquisition level.",
+    "No synthetic observations, interpolation, or imputation.",
+    "Processed temporal summaries are descriptive and must be shifted to forecast issuance time during model feature construction."
+  ]
+}
