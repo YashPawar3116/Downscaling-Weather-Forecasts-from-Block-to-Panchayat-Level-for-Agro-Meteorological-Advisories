@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Open the Vite URL shown in the terminal. `npm run dev` starts both services automatically; it runs the local API on port 8001 and Vite proxies `/api` requests to it. For a single-process production preview, run `npm run build` inside `frontend`, then start `python frontend/server.py`; the Python server serves the built frontend and its `/api` routes on port 8001.
+Open the Vite URL shown in the terminal. Both `npm run dev` and `npm run dev:frontend` start the local API on port 8001 before starting Vite, which proxies `/api` requests to it. On Windows, the launcher uses the Python launcher (`py -3`); set `PYTHON` to a specific interpreter path if needed. For a single-process production preview, run `npm run build` inside `frontend`, then start `python frontend/server.py`; the Python server serves the built frontend and its `/api` routes on port 8001.
 
 ## Deploy
 

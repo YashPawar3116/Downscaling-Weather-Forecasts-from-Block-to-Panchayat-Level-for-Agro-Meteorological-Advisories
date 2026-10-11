@@ -1,0 +1,2983 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        SIH Hyperlocal Weather Map
+    </title>
+
+
+    <!-- =========================================================
+         MAPLIBRE CSS
+    ========================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css"
+    >
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        html,
+        body {
+
+            margin: 0;
+
+            width: 100%;
+
+            height: 100%;
+
+            overflow: hidden;
+
+            font-family:
+                Inter,
+                Arial,
+                sans-serif;
+
+        }
+
+
+        #map {
+
+            position: absolute;
+
+            inset: 0;
+
+        }
+
+
+        /* =====================================================
+           CONTROL PANEL
+        ====================================================== */
+
+        .control-panel {
+
+            position: absolute;
+
+            top: 18px;
+
+            right: 18px;
+
+            z-index: 100;
+
+            width: 235px;
+
+            padding: 14px;
+
+            border-radius: 14px;
+
+            background:
+                rgba(255, 255, 255, 0.96);
+
+            box-shadow:
+                0 8px 30px
+                rgba(0, 0, 0, 0.20);
+
+            backdrop-filter:
+                blur(10px);
+
+        }
+
+
+        .panel-title {
+
+            font-size: 13px;
+
+            font-weight: 800;
+
+            margin-bottom: 7px;
+
+            color: #17202a;
+
+        }
+
+
+        .panel-section {
+
+            margin-bottom: 14px;
+
+        }
+
+
+        select {
+
+            width: 100%;
+
+            padding: 9px 10px;
+
+            border-radius: 8px;
+
+            border: 1px solid #d4d9dc;
+
+            background: white;
+
+            font-size: 13px;
+
+            outline: none;
+
+            cursor: pointer;
+
+        }
+
+
+        select:focus {
+
+            border-color: #4c9aff;
+
+        }
+
+
+        /* =====================================================
+           LEGEND
+        ====================================================== */
+
+        .legend {
+
+            position: absolute;
+
+            right: 18px;
+
+            bottom: 22px;
+
+            z-index: 100;
+
+            width: 230px;
+
+            padding: 14px;
+
+            border-radius: 13px;
+
+            background:
+                rgba(255,255,255,0.96);
+
+            box-shadow:
+                0 8px 30px
+                rgba(0,0,0,0.18);
+
+        }
+
+
+        .legend-title {
+
+            font-size: 13px;
+
+            font-weight: 800;
+
+            margin-bottom: 9px;
+
+        }
+
+
+        .gradient {
+
+            height: 13px;
+
+            width: 100%;
+
+            border-radius: 20px;
+
+        }
+
+
+        .legend-labels {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            margin-top: 5px;
+
+            font-size: 10px;
+
+            color: #555;
+
+        }
+
+
+        /* =====================================================
+           SELECTED GP CARD
+        ====================================================== */
+
+        .selected-card {
+
+            position: absolute;
+
+            left: 18px;
+
+            bottom: 22px;
+
+            z-index: 100;
+
+            width: 245px;
+
+            padding: 14px;
+
+            border-radius: 13px;
+
+            background:
+                rgba(255,255,255,0.96);
+
+            box-shadow:
+                0 8px 30px
+                rgba(0,0,0,0.18);
+
+        }
+
+
+        .selected-name {
+
+            font-weight: 800;
+
+            font-size: 14px;
+
+            margin-bottom: 8px;
+
+        }
+
+
+        .selected-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 7px;
+
+        }
+
+
+        .metric {
+
+            padding: 8px;
+
+            background: #f4f6f7;
+
+            border-radius: 8px;
+
+            font-size: 11px;
+
+        }
+
+
+        .metric strong {
+
+            display: block;
+
+            font-size: 13px;
+
+            margin-top: 2px;
+
+        }
+
+
+        /* =====================================================
+           MAP ATTRIBUTION
+        ====================================================== */
+
+        .maplibregl-ctrl-attrib {
+
+            font-size: 9px;
+
+        }
+
+
+        /* =====================================================
+           POPUP
+        ====================================================== */
+
+        .popup {
+
+            min-width: 190px;
+
+            font-family:
+                Inter,
+                Arial,
+                sans-serif;
+
+        }
+
+
+        .popup-title {
+
+            font-size: 14px;
+
+            font-weight: 800;
+
+            margin-bottom: 8px;
+
+        }
+
+
+        .popup-row {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            padding: 4px 0;
+
+            font-size: 12px;
+
+        }
+
+
+        /* =====================================================
+           MAP BUTTONS
+        ====================================================== */
+
+        .map-buttons {
+
+            position: absolute;
+
+            left: 18px;
+
+            top: 18px;
+
+            z-index: 100;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 6px;
+
+        }
+
+
+        .map-btn {
+
+            border: none;
+
+            padding: 9px 12px;
+
+            border-radius: 9px;
+
+            background:
+                rgba(255,255,255,0.94);
+
+            box-shadow:
+                0 4px 15px
+                rgba(0,0,0,.16);
+
+            cursor: pointer;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+        }
+
+
+        .map-btn:hover {
+
+            background: white;
+
+        }
+
+    </style>
+<style>
+  .control-panel, .legend, .selected-card, .map-buttons { display: none !important; }
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     MAP
+========================================================== -->
+
+<div id="map"></div>
+
+
+<!-- =========================================================
+     MAP CONTROLS
+========================================================== -->
+
+<div class="control-panel">
+
+
+    <div class="panel-section">
+
+        <div class="panel-title">
+            BASE MAP
+        </div>
+
+        <select id="baseMapSelect">
+
+            <option value="satellite">
+                ðŸ›° Satellite
+            </option>
+
+            <option value="satellite-labels">
+                ðŸ›° Satellite + Labels
+            </option>
+
+            <option value="agriculture">
+                ðŸŒ¿ Agriculture
+            </option>
+
+            <option value="liberty">
+                ðŸ—º Liberty
+            </option>
+
+            <option value="positron">
+                â—» Positron
+            </option>
+
+            <option value="dark">
+                ðŸŒ™ Dark
+            </option>
+
+            <option value="fiord">
+                ðŸŒŠ Fiord
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <div class="panel-section">
+
+        <div class="panel-title">
+            WEATHER VARIABLE
+        </div>
+
+        <select id="weatherSelect">
+
+            <option value="temperature">
+                ðŸŒ¡ Temperature
+            </option>
+
+            <option value="humidity">
+                ðŸ’§ Humidity
+            </option>
+
+            <option value="rainfall">
+                ðŸŒ§ Rainfall
+            </option>
+
+            <option value="wind">
+                ðŸ’¨ Wind
+            </option>
+
+        </select>
+
+    </div>
+
+
+</div>
+
+
+<!-- =========================================================
+     MAP QUICK BUTTONS
+========================================================== -->
+
+<div class="map-buttons">
+
+    <button
+        class="map-btn"
+        id="fitButton"
+    >
+        â›¶ Fit Gram Panchayats
+    </button>
+
+</div>
+
+
+<!-- =========================================================
+     LEGEND
+========================================================== -->
+
+<div class="legend">
+
+    <div
+        class="legend-title"
+        id="legendTitle"
+    >
+        Temperature
+    </div>
+
+
+    <div
+        class="gradient"
+        id="legendGradient"
+    ></div>
+
+
+    <div class="legend-labels">
+
+        <span id="legendMin">
+            15Â°C
+        </span>
+
+        <span id="legendMax">
+            40Â°C
+        </span>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     SELECTED GP
+========================================================== -->
+
+<div
+    class="selected-card"
+    id="selectedCard"
+>
+
+    <div class="selected-name">
+        Select a Gram Panchayat
+    </div>
+
+    <div class="selected-grid">
+
+        <div class="metric">
+            ðŸŒ¡ Temperature
+            <strong>--</strong>
+        </div>
+
+        <div class="metric">
+            ðŸ’§ Humidity
+            <strong>--</strong>
+        </div>
+
+        <div class="metric">
+            ðŸŒ§ Rainfall
+            <strong>--</strong>
+        </div>
+
+        <div class="metric">
+            ðŸ’¨ Wind
+            <strong>--</strong>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     MAPLIBRE
+========================================================== -->
+
+<script type="module">
+
+import * as maplibregl
+    from "https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.mjs";
+
+
+/* =========================================================
+   TURF.JS
+========================================================= */
+
+import * as turf
+    from "https://cdn.jsdelivr.net/npm/@turf/turf@7.2.0/+esm";
+
+
+/* =========================================================
+   OPENFREEMAP STYLES
+
+   These are OpenStreetMap-derived vector styles.
+========================================================= */
+
+const OPENFREE_MAP = {
+
+    liberty:
+        "https://tiles.openfreemap.org/styles/liberty",
+
+    positron:
+        "https://tiles.openfreemap.org/styles/positron",
+
+    dark:
+        "https://tiles.openfreemap.org/styles/dark",
+
+    fiord:
+        "https://tiles.openfreemap.org/styles/fiord"
+
+};
+
+
+/* =========================================================
+   SATELLITE SOURCE
+
+   OpenFreeMap itself does NOT provide satellite imagery.
+
+   Satellite is therefore an additional raster source.
+
+   For an SIH/demo deployment, this gives the visual
+   satellite layer you want. Keep attribution and check
+   the imagery provider's current usage terms before
+   production/commercial deployment.
+========================================================= */
+
+const SATELLITE_TILES = [
+
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+
+];
+
+
+const SATELLITE_LABEL_TILES = [
+
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+
+];
+
+const SATELLITE_ROAD_TILES = [
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
+];
+
+
+/* =========================================================
+   YOUR LOCATION
+
+   Sinnar / Nashik example.
+
+   Replace with your actual selected block center.
+========================================================= */
+
+const INITIAL_CENTER = [
+
+    73.995,
+
+    19.845
+
+];
+
+
+const INITIAL_ZOOM = 10;
+
+
+/* =========================================================
+   WEATHER STYLES
+
+   Every variable gets its own gradient.
+========================================================= */
+
+const WEATHER_STYLES = {
+
+
+    /* =====================================================
+       TEMPERATURE
+    ===================================================== */
+
+    temperature: {
+
+        title:
+            "Temperature",
+
+        unit:
+            "Â°C",
+
+        min:
+            15,
+
+        max:
+            40,
+
+        colors: ["#fff04a", "#ffad1f", "#ed401b"],
+
+        expression: [
+
+            "interpolate",
+
+            ["linear"],
+
+            ["get", "temperature"],
+
+            12, "#fff04a",
+            24, "#ffad1f",
+            42, "#ed401b"
+
+        ]
+
+    },
+
+
+    /* =====================================================
+       HUMIDITY
+    ===================================================== */
+
+    humidity: {
+
+        title:
+            "Humidity",
+
+        unit:
+            "%",
+
+        min:
+            30,
+
+        max:
+            100,
+
+        colors: [
+
+            "#efff9a", "#41c9a4", "#1556c0"
+
+        ],
+
+        expression: [
+
+            "interpolate",
+
+            ["linear"],
+
+            ["get", "humidity"],
+
+            0, "#efff9a",
+            50, "#41c9a4",
+            100, "#1556c0"
+
+        ]
+
+    },
+
+
+    /* =====================================================
+       RAINFALL
+    ===================================================== */
+
+    rainfall: {
+
+        title:
+            "Rainfall",
+
+        unit:
+            "mm",
+
+        min:
+            0,
+
+        max:
+            60,
+
+        colors: [
+
+            "#e8f5ff", "#318ad8", "#092e87"
+
+        ],
+
+        expression: [
+
+            "interpolate",
+
+            ["linear"],
+
+            ["get", "rainfall"],
+
+            0, "#e8f5ff",
+            15, "#318ad8",
+            60, "#092e87"
+
+        ]
+
+    },
+
+
+    /* =====================================================
+       WIND
+    ===================================================== */
+
+    wind: {
+
+        title:
+            "Wind Speed",
+
+        unit:
+            "km/h",
+
+        min:
+            0,
+
+        max:
+            60,
+
+        colors: [
+
+            "#dcfce7", "#16a34a", "#633bb4"
+
+        ],
+
+        expression: [
+
+            "interpolate",
+
+            ["linear"],
+
+            ["get", "wind_speed"],
+
+            0, "#dcfce7",
+            25, "#16a34a",
+            90, "#633bb4"
+
+        ]
+
+    }
+
+};
+
+
+/* =========================================================
+   DEMO WEATHER DATA
+
+   REPLACE THIS ENTIRE OBJECT WITH YOUR 113 GP GEOJSON.
+
+   Required properties:
+
+   id
+   name
+   temperature
+   humidity
+   rainfall
+   wind_speed
+   wind_direction
+========================================================= */
+
+let WEATHER_DATA = {
+
+    type:
+        "FeatureCollection",
+
+    features: [
+
+        {
+
+            type:
+                "Feature",
+
+            id:
+                "gp001",
+
+            properties: {
+
+                id:
+                    "gp001",
+
+                name:
+                    "Wavi",
+
+                temperature:
+                    34.7,
+
+                humidity:
+                    68,
+
+                rainfall:
+                    11.9,
+
+                wind_speed:
+                    20,
+
+                wind_direction:
+                    145
+
+            },
+
+            geometry: {
+
+                type:
+                    "Point",
+
+                coordinates: [
+
+                    73.995,
+
+                    19.845
+
+                ]
+
+            }
+
+        },
+
+
+        {
+
+            type:
+                "Feature",
+
+            id:
+                "gp002",
+
+            properties: {
+
+                id:
+                    "gp002",
+
+                name:
+                    "Sinnar East",
+
+                temperature:
+                    31.5,
+
+                humidity:
+                    73,
+
+                rainfall:
+                    18.5,
+
+                wind_speed:
+                    14,
+
+                wind_direction:
+                    220
+
+            },
+
+            geometry: {
+
+                type:
+                    "Point",
+
+                coordinates: [
+
+                    74.035,
+
+                    19.86
+
+                ]
+
+            }
+
+        },
+
+
+        {
+
+            type:
+                "Feature",
+
+            id:
+                "gp003",
+
+            properties: {
+
+                id:
+                    "gp003",
+
+                name:
+                    "Sinnar West",
+
+                temperature:
+                    27.2,
+
+                humidity:
+                    82,
+
+                rainfall:
+                    31.4,
+
+                wind_speed:
+                    23,
+
+                wind_direction:
+                    45
+
+            },
+
+            geometry: {
+
+                type:
+                    "Point",
+
+                coordinates: [
+
+                    73.955,
+
+                    19.83
+
+                ]
+
+            }
+
+        },
+
+
+        {
+
+            type:
+                "Feature",
+
+            id:
+                "gp004",
+
+            properties: {
+
+                id:
+                    "gp004",
+
+                name:
+                    "Example GP 4",
+
+                temperature:
+                    22.5,
+
+                humidity:
+                    91,
+
+                rainfall:
+                    46,
+
+                wind_speed:
+                    8,
+
+                wind_direction:
+                    315
+
+            },
+
+            geometry: {
+
+                type:
+                    "Point",
+
+                coordinates: [
+
+                    74.01,
+
+                    19.89
+
+                ]
+
+            }
+
+        }
+
+    ]
+
+};
+
+
+/* =========================================================
+   OPTIONAL GP BOUNDARIES
+
+   Put your actual Gram Panchayat boundary GeoJSON here.
+
+   Example:
+
+   const GP_BOUNDARIES = {
+      type: "FeatureCollection",
+      features: [...]
+   };
+
+   The empty collection below is safe until you
+   connect your real boundary data.
+========================================================= */
+
+let GP_BOUNDARIES = {
+
+    type:
+        "FeatureCollection",
+
+    features:
+        []
+
+};
+let BLOCK_BOUNDARIES = { type: "FeatureCollection", features: [] };
+let showGpBoundaries = true;
+let showBlockBoundary = true;
+
+
+/* =========================================================
+   CURRENT STATE
+========================================================= */
+
+let currentWeatherMode =
+    "temperature";
+
+let weatherDifferenceMode = false;
+
+let currentBaseMap =
+    "satellite";
+
+let selectedGPId = null;
+
+
+let map;
+
+
+/* =========================================================
+   INITIAL MAP
+
+   Start with OpenFreeMap Liberty.
+
+   Satellite will be placed above it.
+========================================================= */
+
+map =
+    new maplibregl.Map({
+
+        container:
+            "map",
+
+        style:
+            OPENFREE_MAP.liberty,
+
+        center:
+            INITIAL_CENTER,
+
+        zoom:
+            INITIAL_ZOOM,
+
+        attributionControl:
+            true,
+
+        maxZoom:
+            18
+
+    });
+
+window.addEventListener("message", handleDashboardMessage);
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+map.addControl(
+
+    new maplibregl.NavigationControl({
+
+        visualizePitch:
+            true
+
+    }),
+
+    "bottom-left"
+
+);
+
+
+/* =========================================================
+   FULLSCREEN
+========================================================= */
+
+map.addControl(
+
+    new maplibregl.FullscreenControl(),
+
+    "bottom-left"
+
+);
+
+
+/* =========================================================
+   AFTER INITIAL STYLE LOAD
+========================================================= */
+
+map.on(
+
+    "load",
+
+    async () => {
+
+        await addSatelliteSources();
+
+        addApplicationLayers();
+
+        updateWeatherVisualization();
+
+        updateLegend();
+
+        fitToGramPanchayats();
+
+        applyBaseMap("satellite");
+        window.parent.postMessage({ type: "hyperweather:map-ready" }, "*");
+
+    }
+
+);
+
+
+/* =========================================================
+   ADD SATELLITE SOURCES
+========================================================= */
+
+async function addSatelliteSources() {
+
+    const firstSymbol = map.getStyle().layers.find(layer => layer.type === "symbol")?.id;
+
+
+    /* =====================================================
+       SATELLITE IMAGERY
+    ===================================================== */
+
+    if (
+        !map.getSource("satellite")
+    ) {
+
+        map.addSource(
+
+            "satellite",
+
+            {
+
+                type:
+                    "raster",
+
+                tiles:
+                    SATELLITE_TILES,
+
+                tileSize:
+                    256,
+
+                minzoom:
+                    0,
+
+                maxzoom:
+                    19,
+
+                attribution:
+                    "Imagery Â© Esri, Maxar, Earthstar Geographics, and others"
+
+            }
+
+        );
+
+    }
+
+
+    /* =====================================================
+       SATELLITE LABELS
+    ===================================================== */
+
+    if (
+        !map.getSource("satellite-labels")
+    ) {
+
+        map.addSource(
+
+            "satellite-labels",
+
+            {
+
+                type:
+                    "raster",
+
+                tiles:
+                    SATELLITE_LABEL_TILES,
+
+                tileSize:
+                    256,
+
+                minzoom:
+                    0,
+
+                maxzoom:
+                    19,
+
+                attribution:
+                    "Â© Esri"
+
+            }
+
+        );
+
+    }
+
+    if (!map.getSource("satellite-roads")) {
+        map.addSource("satellite-roads", {
+            type: "raster", tiles: SATELLITE_ROAD_TILES, tileSize: 256,
+            minzoom: 0, maxzoom: 19, attribution: "Â© Esri"
+        });
+    }
+
+
+    /* =====================================================
+       SATELLITE LAYER
+    ===================================================== */
+
+    if (
+        !map.getLayer("satellite-layer")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "satellite-layer",
+
+            type:
+                "raster",
+
+            source:
+                "satellite",
+
+            layout: {
+
+                visibility:
+                    "none"
+
+            },
+
+            paint: {
+
+                "raster-opacity":
+                    0.86,
+
+                "raster-saturation":
+                    -0.10,
+
+                "raster-contrast":
+                    0.05
+
+            }
+
+        }, firstSymbol);
+
+    }
+
+
+    /* =====================================================
+       SATELLITE LABEL LAYER
+    ===================================================== */
+
+    if (
+        !map.getLayer("satellite-label-layer")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "satellite-label-layer",
+
+            type:
+                "raster",
+
+            source:
+                "satellite-labels",
+
+            layout: {
+
+                visibility:
+                    "none"
+
+            },
+
+            paint: {
+
+                "raster-opacity":
+                    0.85
+
+            }
+
+        }, firstSymbol);
+
+    }
+
+    if (!map.getLayer("satellite-road-layer")) {
+        map.addLayer({
+            id: "satellite-road-layer", type: "raster", source: "satellite-roads",
+            layout: { visibility: "none" },
+            paint: { "raster-opacity": 0.96, "raster-contrast": 0.12, "raster-brightness-max": 0.98 }
+        }, firstSymbol);
+
+    }
+
+}
+
+
+/* =========================================================
+   APPLICATION LAYERS
+========================================================= */
+
+function addApplicationLayers() {
+
+
+    /* =====================================================
+       WEATHER SOURCE
+    ===================================================== */
+
+    if (
+        !map.getSource("weather")
+    ) {
+
+        map.addSource(
+
+            "weather",
+
+            {
+
+                type:
+                    "geojson",
+
+                data:
+                    WEATHER_DATA,
+
+                promoteId:
+                    "id"
+
+            }
+
+        );
+
+    }
+
+
+    /* =====================================================
+       GP BOUNDARY SOURCE
+    ===================================================== */
+
+    if (
+        !map.getSource("gp-boundaries")
+    ) {
+
+        map.addSource(
+
+            "gp-boundaries",
+
+            {
+
+                type:
+                    "geojson",
+
+                data:
+                    GP_BOUNDARIES
+
+            }
+
+        );
+
+    }
+
+    if (!map.getSource("block-boundaries")) map.addSource("block-boundaries", { type: "geojson", data: BLOCK_BOUNDARIES });
+    if (!map.getLayer("block-boundary-casing")) map.addLayer({ id: "block-boundary-casing", type: "line", source: "block-boundaries", paint: { "line-color": "#10261f", "line-width": 5, "line-opacity": 0.92, "line-dasharray": [2, 1] } });
+    if (!map.getLayer("block-boundary-line")) map.addLayer({ id: "block-boundary-line", type: "line", source: "block-boundaries", paint: { "line-color": "#f4c542", "line-width": 2.5, "line-dasharray": [2, 1], "line-opacity": 1 } });
+
+
+    /* =====================================================
+       GP BOUNDARY
+    ===================================================== */
+
+    if (
+        !map.getLayer("gp-boundary-fill")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "gp-boundary-fill",
+
+            type:
+                "fill",
+
+            source:
+                "gp-boundaries",
+
+            paint: {
+
+                "fill-color":
+                    "#FFFFFF",
+
+                "fill-opacity":
+                    0.03
+
+            }
+
+        });
+
+    }
+
+
+    /* =====================================================
+       GP BOUNDARY LINE
+    ===================================================== */
+
+    if (!map.getLayer("gp-boundary-casing")) {
+        map.addLayer({
+            id: "gp-boundary-casing", type: "line", source: "gp-boundaries",
+            paint: { "line-color": "#10231c", "line-width": 3.8, "line-opacity": 0.96 }
+        });
+    }
+
+    if (
+        !map.getLayer("gp-boundary-line")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "gp-boundary-line",
+
+            type:
+                "line",
+
+            source:
+                "gp-boundaries",
+
+            paint: {
+
+                "line-color":
+                    "#FFFFFF",
+
+                "line-width":
+                1.7,
+
+                "line-opacity":
+                0.98
+
+            }
+
+        });
+
+    }
+
+    if (!map.getLayer("selected-gp-fill")) map.addLayer({ id: "selected-gp-fill", type: "fill", source: "gp-boundaries", filter: ["==", ["get", "gp_id"], ""], paint: { "fill-color": "#168cff", "fill-opacity": 0.34 } });
+    if (!map.getLayer("selected-gp-line")) map.addLayer({ id: "selected-gp-line", type: "line", source: "gp-boundaries", filter: ["==", ["get", "gp_id"], ""], paint: { "line-color": "#0878f9", "line-width": 3.5, "line-opacity": 1 } });
+
+
+    /* =====================================================
+       WEATHER GLOW
+    ===================================================== */
+
+    if (
+        !map.getLayer("weather-glow")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "weather-glow",
+
+            type:
+                "circle",
+
+            source:
+                "weather",
+
+            paint: {
+
+                "circle-radius": [
+
+                    "interpolate",
+
+                    ["linear"],
+
+                    ["zoom"],
+
+                    7,
+                    9,
+
+                    10,
+                    12,
+
+                    14,
+                    19
+
+                ],
+
+                "circle-color":
+                    "#FFFFFF",
+
+                "circle-opacity":
+                    0.14,
+
+                "circle-blur":
+                    1
+
+            }
+
+        });
+
+    }
+
+
+    /* =====================================================
+       WEATHER POINTS
+    ===================================================== */
+
+    if (
+        !map.getLayer("weather-points")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "weather-points",
+
+            type:
+                "circle",
+
+            source:
+                "weather",
+
+            paint: {
+
+                "circle-radius": [
+
+                    "interpolate",
+
+                    ["linear"],
+
+                    ["zoom"],
+
+                    7,
+                    4,
+
+                    10,
+                    6,
+
+                    13,
+                    8,
+
+                    16,
+                    11
+
+                ],
+
+                "circle-color":
+
+                    WEATHER_STYLES
+                        .temperature
+                        .expression,
+
+                "circle-opacity":
+                    0.94,
+
+                "circle-stroke-color":
+                    "#FFFFFF",
+
+                "circle-stroke-width":
+                    1.4
+
+            }
+
+        });
+
+    }
+
+
+    /* =====================================================
+       SELECTED GP OUTLINE
+    ===================================================== */
+
+    if (
+        !map.getLayer("selected-gp")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "selected-gp",
+
+            type:
+                "circle",
+
+            source:
+                "weather",
+
+            filter: [
+
+                "==",
+
+                ["get", "id"],
+
+                ""
+
+            ],
+
+            paint: {
+
+                "circle-radius": [
+
+                    "interpolate",
+
+                    ["linear"],
+
+                    ["zoom"],
+
+                    8,
+                    12,
+
+                    12,
+                    18,
+
+                    16,
+                    24
+
+                ],
+
+                "circle-color":
+                    "rgba(255,255,255,0)",
+
+                "circle-stroke-color":
+                    "#FFFFFF",
+
+                "circle-stroke-width":
+                    3
+
+            }
+
+        });
+
+    }
+
+
+    /* =====================================================
+       WIND ARROWS
+    ===================================================== */
+
+    if (
+        !map.getLayer("wind-arrows")
+    ) {
+
+        map.addLayer({
+
+            id:
+                "wind-arrows",
+
+            type:
+                "symbol",
+
+            source:
+                "weather",
+
+            layout: {
+
+                "text-field":
+                    "âž¤",
+
+                "text-size": [
+
+                    "interpolate",
+
+                    ["linear"],
+
+                    ["zoom"],
+
+                    7,
+                    10,
+
+                    12,
+                    15,
+
+                    16,
+                    20
+
+                ],
+
+                "text-rotate":
+                    ["get", "wind_direction"],
+
+                "text-rotation-alignment":
+                    "map",
+
+                "text-allow-overlap":
+                    true,
+
+                "visibility":
+                    "none"
+
+            },
+
+            paint: {
+
+                "text-color":
+                    "#FFFFFF",
+
+                "text-halo-color":
+                    "#222222",
+
+                "text-halo-width":
+                    1
+
+            }
+
+        });
+
+    }
+
+    if (!map.getLayer("gp-labels")) {
+        map.addLayer({
+            id: "gp-labels",
+            type: "symbol",
+            source: "gp-boundaries",
+            layout: {
+                "text-field": ["coalesce", ["get", "gp_name"], ["get", "name"]],
+                "text-font": ["Noto Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 8, 8, 10, 10, 13, 12],
+                "text-anchor": "center",
+                "text-max-width": 9,
+                "text-padding": 3,
+                "text-allow-overlap": false,
+                "text-ignore-placement": false,
+                "visibility": showGpBoundaries ? "visible" : "none"
+            },
+            paint: {
+                "text-color": "#ffffff",
+                "text-halo-color": "#14251e",
+                "text-halo-width": 2,
+                "text-halo-blur": 0.4
+            }
+        });
+    }
+
+    keepBaseLabelsAboveWeather();
+    updateBaseMapContrasts();
+
+
+    /* =====================================================
+       WEATHER POINT EVENTS
+    ===================================================== */
+
+    map.on(
+
+        "click",
+
+        "weather-points",
+
+        handleWeatherClick
+
+    );
+
+
+    map.on(
+
+        "mouseenter",
+
+        "weather-points",
+
+        () => {
+
+            map.getCanvas()
+                .style.cursor =
+                "pointer";
+
+        }
+
+    );
+
+
+    map.on(
+
+        "mouseleave",
+
+        "weather-points",
+
+        () => {
+
+            map.getCanvas()
+                .style.cursor =
+                "";
+
+        }
+
+    );
+
+    for (const [id, visible] of [["gp-boundary-fill", showGpBoundaries], ["selected-gp-fill", showGpBoundaries], ["selected-gp-line", showGpBoundaries], ["gp-boundary-casing", showGpBoundaries], ["gp-boundary-line", showGpBoundaries], ["gp-labels", showGpBoundaries], ["block-boundary-casing", showBlockBoundary], ["block-boundary-line", showBlockBoundary]]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+    }
+
+}
+
+function keepBaseLabelsAboveWeather() {
+    const custom = new Set(["gp-labels", "wind-arrows"]);
+    const firstBaseSymbol = map.getStyle().layers.find(layer => layer.type === "symbol" && !custom.has(layer.id))?.id;
+    if (!firstBaseSymbol) return;
+    ["block-boundary-casing", "block-boundary-line", "gp-boundary-fill", "gp-boundary-casing", "gp-boundary-line", "weather-glow", "weather-points", "selected-gp", "wind-arrows"].forEach(id => {
+        if (map.getLayer(id)) map.moveLayer(id, firstBaseSymbol);
+    });
+}
+
+function updateBaseMapContrasts() {
+    const light = ["liberty", "positron", "fiord", "agriculture"].includes(currentBaseMap);
+    if (map.getLayer("gp-labels")) {
+        map.setPaintProperty("gp-labels", "text-color", light ? "#142a20" : "#ffffff");
+        map.setPaintProperty("gp-labels", "text-halo-color", light ? "#f8fff0" : "#13231c");
+        map.setPaintProperty("gp-labels", "text-halo-width", 2.8);
+    }
+    if (map.getLayer("gp-boundary-line")) map.setPaintProperty("gp-boundary-line", "line-color", light ? "#176b50" : "#ffffff");
+    if (map.getLayer("gp-boundary-casing")) map.setPaintProperty("gp-boundary-casing", "line-color", light ? "#f7fff3" : "#10231c");
+    if (map.getLayer("block-boundary-line")) map.setPaintProperty("block-boundary-line", "line-color", light ? "#00885d" : "#ffd44f");
+}
+
+
+/* =========================================================
+   WEATHER CLICK
+========================================================= */
+
+function popupValue(value) {
+    const number = Number(value);
+    return value === null || value === undefined || value === "" || !Number.isFinite(number)
+        ? "Not available"
+        : number.toFixed(4);
+}
+
+function handleWeatherClick(
+    event
+) {
+
+    if (
+        !event.features ||
+        !event.features.length
+    ) return;
+
+
+    const feature =
+        event.features[0];
+
+
+    const p =
+        feature.properties;
+
+    const coordinates =
+        feature.geometry.coordinates
+            .slice();
+
+
+    setSelectedGP(
+        p.id
+    );
+
+    window.parent.postMessage({ type: "hyperweather:select-gp", id: String(p.id) }, "*");
+
+
+    new maplibregl.Popup({
+
+        closeButton:
+            true,
+
+        closeOnClick:
+            true
+
+    })
+
+    .setLngLat(
+        coordinates
+    )
+
+    .setHTML(`
+
+        <div class="popup">
+
+            <div class="popup-title">
+
+                ${p.name}
+
+            </div>
+
+
+            <div class="popup-row">
+
+                <span>ðŸŒ¡ Temperature</span>
+
+                <strong>
+                    ${popupValue(p.temperature)} Â°C
+                </strong>
+
+            </div>
+
+
+            <div class="popup-row">
+
+                <span>ðŸ’§ Humidity</span>
+
+                <strong>
+                    ${popupValue(p.humidity)} %
+                </strong>
+
+            </div>
+
+
+            <div class="popup-row">
+
+                <span>ðŸŒ§ Rainfall</span>
+
+                <strong>
+                    ${popupValue(p.rainfall)} mm
+                </strong>
+
+            </div>
+
+
+            <div class="popup-row">
+
+                <span>ðŸ’¨ Wind</span>
+
+                <strong>
+                    ${popupValue(p.wind_speed)} km/h
+                </strong>
+
+            </div>
+
+        </div>
+
+    `)
+
+    .addTo(map);
+
+}
+
+function handleDashboardMessage(event) {
+    const message = event.data;
+    if (!message || typeof message !== "object") return;
+    if (message.type === "hyperweather:data") {
+        selectedGPId = message.selectedId == null ? null : String(message.selectedId);
+        const gps = Array.isArray(message.gps) ? message.gps : [];
+        const dayIndex = Number(message.dayIndex || 0);
+        WEATHER_DATA = {
+            type: "FeatureCollection",
+            features: gps.filter(g => Number.isFinite(g.lon) && Number.isFinite(g.lat)).map(g => {
+                const day = g.forecast?.[dayIndex] || {};
+                return { type: "Feature", id: String(g.id), properties: {
+                    id: String(g.id), gp_id: String(g.id), name: g.name,
+                    temperature: day.temperature, humidity: day.humidity,
+                    rainfall: day.rainfall, wind_speed: day.wind == null ? null : day.wind * 3.6,
+                    wind_direction: day.wind_direction
+                }, geometry: { type: "Point", coordinates: [g.lon, g.lat] } };
+            })
+        };
+        GP_BOUNDARIES = message.gpGeometry || { type: "FeatureCollection", features: [] };
+        BLOCK_BOUNDARIES = message.blockGeometry || { type: "FeatureCollection", features: [] };
+        if (map.isStyleLoaded() && map.getSource("weather")) {
+            map.getSource("weather").setData(WEATHER_DATA);
+            map.getSource("gp-boundaries").setData(GP_BOUNDARIES);
+            map.getSource("block-boundaries")?.setData(BLOCK_BOUNDARIES);
+            updateWeatherVisualization();
+            if (message.selectedId) setSelectedGP(message.selectedId);
+            // Keep the dashboard's default at the selected block extent.
+            fitToGramPanchayats();
+        }
+    } else if (message.type === "hyperweather:mode") {
+        weatherDifferenceMode = message.mode === "difference";
+        updateWeatherVisualization();
+    } else if (message.type === "hyperweather:layer") {
+        currentWeatherMode = String(message.layer || "temperature").toLowerCase();
+        updateWeatherVisualization();
+    } else if (message.type === "hyperweather:selected") {
+        setSelectedGP(message.id);
+    } else if (message.type === "hyperweather:basemap") {
+        applyBaseMap(message.base);
+    } else if (message.type === "hyperweather:fit") {
+        fitToGramPanchayats();
+    } else if (message.type === "hyperweather:boundaries") {
+        showGpBoundaries = Boolean(message.gp);
+        showBlockBoundary = Boolean(message.block);
+        for (const [id, visible] of [["gp-boundary-fill", showGpBoundaries], ["selected-gp-fill", showGpBoundaries], ["selected-gp-line", showGpBoundaries], ["gp-boundary-casing", showGpBoundaries], ["gp-boundary-line", showGpBoundaries], ["gp-labels", showGpBoundaries], ["block-boundary-casing", showBlockBoundary], ["block-boundary-line", showBlockBoundary]]) {
+            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+        }
+    }
+}
+
+
+/* =========================================================
+   SELECT GP
+========================================================= */
+
+function setSelectedGP(
+    id
+) {
+
+    selectedGPId = String(id);
+
+
+    /* =====================================================
+       MAP HIGHLIGHT
+    ===================================================== */
+
+    if (
+        map.getLayer("selected-gp")
+    ) {
+
+        map.setFilter(
+
+            "selected-gp",
+
+            [
+
+                "==",
+
+                ["get", "id"],
+
+                id
+
+            ]
+
+        );
+
+    }
+
+    for (const layer of ["selected-gp-fill", "selected-gp-line"]) {
+        if (map.getLayer(layer)) map.setFilter(layer, ["==", ["to-string", ["get", "gp_id"]], String(id)]);
+    }
+
+
+    /* =====================================================
+       FIND FEATURE
+    ===================================================== */
+
+    const feature =
+        WEATHER_DATA.features
+            .find(
+                f =>
+                    String(
+                        f.properties.id
+                    ) === String(id)
+            );
+
+
+    if (!feature)
+        return;
+
+    const selectedBoundaryFeatures = (GP_BOUNDARIES.features || []).filter(item => String(item.properties?.gp_id ?? item.properties?.id ?? "") === String(id));
+    if (selectedBoundaryFeatures.length) {
+        const bounds = turf.bbox({ type: "FeatureCollection", features: selectedBoundaryFeatures });
+        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 70, maxZoom: 13, duration: 850 });
+    } else {
+        map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(map.getZoom(), 12), duration: 850 });
+    }
+
+
+    const p =
+        feature.properties;
+
+
+    /* =====================================================
+       UPDATE CARD
+    ===================================================== */
+
+    document.getElementById(
+        "selectedCard"
+    ).innerHTML = `
+
+        <div class="selected-name">
+
+            ${p.name}
+
+        </div>
+
+
+        <div class="selected-grid">
+
+            <div class="metric">
+
+                ðŸŒ¡ Temperature
+
+                <strong>
+                    ${popupValue(p.temperature)} Â°C
+                </strong>
+
+            </div>
+
+
+            <div class="metric">
+
+                ðŸ’§ Humidity
+
+                <strong>
+                    ${popupValue(p.humidity)} %
+                </strong>
+
+            </div>
+
+
+            <div class="metric">
+
+                ðŸŒ§ Rainfall
+
+                <strong>
+                    ${popupValue(p.rainfall)} mm
+                </strong>
+
+            </div>
+
+
+            <div class="metric">
+
+                ðŸ’¨ Wind
+
+                <strong>
+                    ${popupValue(p.wind_speed)} km/h
+                </strong>
+
+            </div>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   WEATHER MODE
+========================================================= */
+
+function updateWeatherVisualization() {
+
+
+    const style =
+        WEATHER_STYLES[
+            currentWeatherMode
+        ];
+
+
+    if (
+        !map.getLayer("weather-points")
+    )
+        return;
+
+
+    /* =====================================================
+       POINT COLOR
+    ===================================================== */
+
+    const property = currentWeatherMode === "wind" ? "wind_speed" : currentWeatherMode;
+    const samples = WEATHER_DATA.features.map(feature => feature.properties[property]).filter(value => value !== null && value !== undefined && Number.isFinite(Number(value))).map(Number);
+    let low = samples.length ? Math.min(...samples) : style.min;
+    let high = samples.length ? Math.max(...samples) : style.max;
+    if (high === low) { low -= 0.5; high += 0.5; }
+    let colors = currentWeatherMode === "temperature" ? ["#fff04a", "#ffad1f", "#ed401b"] :
+        currentWeatherMode === "rainfall" ? ["#e8f5ff", "#318ad8", "#092e87"] :
+        currentWeatherMode === "humidity" ? ["#efff9a", "#41c9a4", "#1556c0"] : ["#dcfce7", "#16a34a", "#633bb4"];
+    let middle = low + (high - low) / 2;
+    if (weatherDifferenceMode && samples.length) {
+        const maximumChange = Math.max(0.1, ...samples.map(value => Math.abs(value)));
+        low = -maximumChange;
+        middle = 0;
+        high = maximumChange;
+        colors = ["#c85539", "#f4f3e9", "#176dc1"];
+    }
+    const expression = ["interpolate", ["linear"], ["coalesce", ["get", property], low], low, colors[0], middle, colors[1], high, colors[2]];
+    map.setPaintProperty("weather-points", "circle-color", expression);
+    map.setPaintProperty("weather-points", "circle-radius", ["interpolate", ["linear"], ["zoom"], 7, 7, 10, 10, 13, 13, 16, 16]);
+    map.setPaintProperty("weather-points", "circle-opacity", samples.length ? 1 : 0);
+    map.setPaintProperty("gp-boundary-fill", "fill-color", ["interpolate", ["linear"], ["get", "weatherValue"], low, colors[0], middle, colors[1], high, colors[2]]);
+    map.setPaintProperty("gp-boundary-fill", "fill-opacity", samples.length ? ["interpolate", ["linear"], ["zoom"], 7, 0.26, 12, 0.38, 15, 0.44] : 0.03);
+    if (map.getSource("gp-boundaries")) {
+        const enriched = { ...GP_BOUNDARIES, features: (GP_BOUNDARIES.features || []).map(feature => {
+            const id = String(feature.properties?.gp_id ?? feature.properties?.id ?? "");
+            const weather = WEATHER_DATA.features.find(point => String(point.properties.id) === id);
+            return { ...feature, properties: { ...feature.properties, weatherValue: weather?.properties[property] ?? low } };
+        }) };
+        map.getSource("gp-boundaries").setData(enriched);
+    }
+
+
+    /* =====================================================
+       WIND ARROWS ONLY IN WIND MODE
+    ===================================================== */
+
+    if (
+        map.getLayer("wind-arrows")
+    ) {
+
+        map.setLayoutProperty(
+
+            "wind-arrows",
+
+            "visibility",
+
+            currentWeatherMode === "wind"
+                ? "visible"
+                : "none"
+
+        );
+
+    }
+
+
+    updateLegend();
+
+}
+
+
+/* =========================================================
+   LEGEND
+========================================================= */
+
+function updateLegend() {
+
+
+    const style =
+        WEATHER_STYLES[
+            currentWeatherMode
+        ];
+
+
+    document.getElementById(
+        "legendTitle"
+    ).textContent =
+        style.title;
+
+
+    document.getElementById(
+        "legendMin"
+    ).textContent =
+        `${style.min}${style.unit}`;
+
+
+    document.getElementById(
+        "legendMax"
+    ).textContent =
+        `${style.max}${style.unit}`;
+
+
+    document.getElementById(
+        "legendGradient"
+    ).style.background =
+
+        `linear-gradient(
+            to right,
+            ${style.colors.join(",")}
+        )`;
+
+}
+
+
+/* =========================================================
+   BASEMAP SWITCHING
+========================================================= */
+
+async function applyBaseMap(
+    theme
+) {
+
+    if (theme === "bright") theme = "liberty";
+
+
+    currentBaseMap =
+        theme;
+
+
+    /* =====================================================
+       SATELLITE
+    ===================================================== */
+
+    if (
+        theme === "satellite" ||
+        theme === "satellite-labels"
+    ) {
+
+        if (
+            map.getLayer("satellite-layer")
+        ) {
+
+            map.setLayoutProperty(
+
+                "satellite-layer",
+
+                "visibility",
+
+                "visible"
+
+            );
+
+        }
+
+
+        if (
+            map.getLayer("satellite-label-layer")
+        ) {
+
+            map.setLayoutProperty(
+
+                "satellite-label-layer",
+
+                "visibility",
+
+                theme ===
+                    "satellite-labels"
+
+                    ? "visible"
+
+                    : "none"
+
+            );
+
+        }
+
+        if (map.getLayer("satellite-road-layer")) {
+            map.setLayoutProperty("satellite-road-layer", "visibility", "visible");
+        }
+        updateBaseMapContrasts();
+
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       HIDE SATELLITE
+    ===================================================== */
+
+    if (
+        map.getLayer("satellite-layer")
+    ) {
+
+        map.setLayoutProperty(
+
+            "satellite-layer",
+
+            "visibility",
+
+            "none"
+
+        );
+
+    }
+
+
+    if (
+        map.getLayer("satellite-label-layer")
+    ) {
+
+        map.setLayoutProperty(
+
+            "satellite-label-layer",
+
+            "visibility",
+
+            "none"
+
+        );
+
+    }
+
+    if (map.getLayer("satellite-road-layer")) {
+        map.setLayoutProperty("satellite-road-layer", "visibility", "none");
+    }
+
+
+    /* =====================================================
+       CUSTOM AGRICULTURE STYLE
+    ===================================================== */
+
+    if (
+        theme === "agriculture"
+    ) {
+
+        await loadCustomAgricultureStyle();
+
+        return;
+
+    }
+
+
+    /* =====================================================
+       OPENFREEMAP STYLE
+    ===================================================== */
+
+    if (
+        OPENFREE_MAP[theme]
+    ) {
+
+        map.setStyle(
+            OPENFREE_MAP[theme]
+        );
+
+
+        map.once(
+
+            "style.load",
+
+            async () => {
+
+                await addSatelliteSources();
+
+                addApplicationLayers();
+
+                updateWeatherVisualization();
+
+                if (selectedGPId) setSelectedGP(selectedGPId);
+                updateBaseMapContrasts();
+
+            }
+
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   CUSTOM AGRICULTURE STYLE
+
+   This is where we actually customize the
+   OpenFreeMap vector style rather than simply
+   loading another standard map.
+========================================================= */
+
+async function loadCustomAgricultureStyle()
+{
+
+    try {
+
+        const response =
+            await fetch(
+                OPENFREE_MAP.liberty
+            );
+
+
+        const style =
+            await response.json();
+
+
+        /* =================================================
+           CUSTOM BACKGROUND
+        ================================================= */
+
+        for (
+            const layer
+            of style.layers
+        ) {
+
+
+            /* ---------------------------------------------
+               BACKGROUND
+            --------------------------------------------- */
+
+            if (
+                layer.type ===
+                "background"
+            ) {
+
+                layer.paint = {
+
+                    ...(layer.paint || {}),
+
+                    "background-color":
+                        "#dce9cc"
+
+                };
+
+            }
+
+
+            /* ---------------------------------------------
+               WATER
+            --------------------------------------------- */
+
+            if (
+                layer.type ===
+                "fill" &&
+                layer["source-layer"] &&
+                String(
+                    layer["source-layer"]
+                ).toLowerCase()
+                    .includes("water")
+            ) {
+
+                layer.paint = {
+
+                    ...(layer.paint || {}),
+
+                    "fill-color":
+                        "#9dd8e8",
+
+                    "fill-opacity":
+                        0.85
+
+                };
+
+            }
+
+
+            /* ---------------------------------------------
+               FOREST / WOODLAND
+            --------------------------------------------- */
+
+            if (
+                layer.type ===
+                "fill" &&
+                layer["source-layer"] &&
+                /forest|wood|park|landcover/i
+                    .test(
+                        layer["source-layer"]
+                    )
+            ) {
+
+                layer.paint = {
+
+                    ...(layer.paint || {}),
+
+                    "fill-color":
+                        "#78a96b"
+
+                };
+
+            }
+
+
+            /* ---------------------------------------------
+               LANDUSE
+            --------------------------------------------- */
+
+            if (
+                layer.type ===
+                "fill" &&
+                layer["source-layer"] &&
+                /landuse/i.test(
+                    layer["source-layer"]
+                )
+            ) {
+
+                layer.paint = {
+
+                    ...(layer.paint || {}),
+
+                    "fill-color":
+                        "#c7ddb2",
+
+                    "fill-opacity":
+                        0.75
+
+                };
+
+            }
+
+
+            /* ---------------------------------------------
+               ROAD COLORS
+            --------------------------------------------- */
+
+            if (
+                layer.type ===
+                "line" &&
+                layer["source-layer"] &&
+                /transportation|road/i.test(
+                    layer["source-layer"]
+                )
+            ) {
+
+                layer.paint = {
+
+                    ...(layer.paint || {}),
+
+                    "line-color":
+                        "#d8a15d"
+
+                };
+
+            }
+
+
+            /* Keep town, district, highway and place labels legible on the
+               custom pale agriculture basemap. */
+            if (
+                layer.type === "symbol" &&
+                layer.layout &&
+                layer.layout["text-field"]
+            ) {
+                layer.paint = {
+                    ...(layer.paint || {}),
+                    "text-color": "#142a20",
+                    "text-halo-color": "#f8fff0",
+                    "text-halo-width": 1.8,
+                    "text-halo-blur": 0.2,
+                    "text-opacity": 1
+                };
+            }
+
+        }
+
+
+        map.setStyle(
+            style
+        );
+
+
+        map.once(
+
+            "style.load",
+
+            async () => {
+
+                await addSatelliteSources();
+
+                addApplicationLayers();
+
+                updateWeatherVisualization();
+
+                if (selectedGPId) setSelectedGP(selectedGPId);
+
+            }
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Custom style failed:",
+            error
+        );
+
+        map.setStyle(
+            OPENFREE_MAP.liberty
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RESTORE SELECTED GP
+========================================================= */
+
+function restoreSelectedGP()
+{
+
+    const card =
+        document.getElementById(
+            "selectedCard"
+        );
+
+
+    if (!card)
+        return;
+
+
+    /* Don't reset card if user hasn't selected one. */
+
+}
+
+
+/* =========================================================
+   TURF.JS â€” FIT ALL GP POINTS
+========================================================= */
+
+function fitToGramPanchayats()
+{
+
+    if (
+        !WEATHER_DATA.features.length
+    )
+        return;
+
+
+    /*
+     * Turf calculates the bounding box
+     * of every Gram Panchayat.
+     */
+
+    const extent = BLOCK_BOUNDARIES.features?.length
+        ? BLOCK_BOUNDARIES
+        : GP_BOUNDARIES.features?.length
+            ? GP_BOUNDARIES
+            : WEATHER_DATA;
+
+    const bbox = turf.bbox(extent);
+
+
+    map.fitBounds(
+
+        [
+
+            [bbox[0], bbox[1]],
+
+            [bbox[2], bbox[3]]
+
+        ],
+
+        {
+
+            padding: 52,
+
+            maxZoom: 11,
+
+            duration: 700
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   TURF.JS â€” CREATE WEATHER ARROW DATA
+
+   This is useful if later you want actual wind
+   vectors instead of only arrow symbols.
+
+   Each arrow is calculated from:
+
+   starting GP point
+       +
+   wind direction
+       +
+   wind speed
+========================================================= */
+
+function createWindVector(
+    feature
+) {
+
+
+    const p =
+        feature.properties;
+
+
+    const start =
+        turf.point(
+            feature.geometry.coordinates
+        );
+
+
+    /*
+     * Convert wind speed into a small
+     * map-visible distance.
+     */
+
+    const distance =
+        Math.max(
+            p.wind_speed / 100,
+            0.02
+        );
+
+
+    const end =
+        turf.destination(
+
+            start,
+
+            distance,
+
+            p.wind_direction,
+
+            {
+                units:
+                    "kilometers"
+            }
+
+        );
+
+
+    return turf.lineString(
+
+        [
+
+            start.geometry.coordinates,
+
+            end.geometry.coordinates
+
+        ],
+
+        {
+
+            id:
+                p.id,
+
+            wind_speed:
+                p.wind_speed
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   FIT BUTTON
+========================================================= */
+
+document.getElementById(
+    "fitButton"
+).addEventListener(
+
+    "click",
+
+    () => {
+
+        fitToGramPanchayats();
+
+    }
+
+);
+
+
+/* =========================================================
+   BASEMAP SELECTOR
+========================================================= */
+
+document.getElementById(
+    "baseMapSelect"
+).addEventListener(
+
+    "change",
+
+    event => {
+
+        applyBaseMap(
+            event.target.value
+        );
+
+    }
+
+);
+
+
+/* =========================================================
+   WEATHER SELECTOR
+========================================================= */
+
+document.getElementById(
+    "weatherSelect"
+).addEventListener(
+
+    "change",
+
+    event => {
+
+        currentWeatherMode =
+            event.target.value;
+
+
+        updateWeatherVisualization();
+        window.parent.postMessage({ type: "hyperweather:layer", layer: currentWeatherMode }, "*");
+
+    }
+
+);
+
+
+/* =========================================================
+   RESPONSIVE RESIZE
+========================================================= */
+
+window.addEventListener(
+
+    "resize",
+
+    () => {
+
+        map.resize();
+
+    }
+
+);
+
+</script>
+
+</body>
+
+</html>

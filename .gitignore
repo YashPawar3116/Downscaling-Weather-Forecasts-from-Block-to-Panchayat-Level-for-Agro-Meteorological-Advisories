@@ -8,6 +8,11 @@ venv/
 .env
 .env.*
 !.env.example
+node_modules/
+
+
+npm-debug.log*
+.DS_Store
 
 # Generated model/data artifacts
 *.csv

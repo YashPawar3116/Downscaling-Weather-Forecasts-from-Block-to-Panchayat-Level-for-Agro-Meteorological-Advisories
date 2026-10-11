@@ -1,3 +1,7 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://hyperweather-api.onrender.com/api/$1" },
+    { "source": "/agri-api/(.*)", "destination": "https://hyperweather-api.onrender.com/agri-api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

@@ -6,6 +6,7 @@ Universal GP-level Sentinel-1 extraction for SIH26 downscaling.
 
 Design:
 - Automatically discovers every gp_master.geojson below <project_root>/gp/
+- Runner mode processes only SIH26_TARGET_GP_MASTER.
 - No state/district/block/path hardcoding.
 - First run: previous 5 years through today.
 - Incremental runs: latest successfully stored acquisition date + 1 day through today.
@@ -32,6 +33,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -86,6 +88,33 @@ def project_root_from_script() -> Path:
 
 
 def discover_gp_masters(project_root: Path) -> List[Path]:
+    target = os.environ.get("SIH26_TARGET_GP_MASTER")
+    if os.environ.get("SIH26_RUNNER_MODE") and not target:
+        raise RuntimeError(
+            "Runner mode requires SIH26_TARGET_GP_MASTER; refusing "
+            "project-wide GP discovery."
+        )
+    if target:
+        target_path = Path(target).resolve()
+        gp_root = (project_root / "gp").resolve()
+        try:
+            target_path.relative_to(gp_root)
+        except ValueError as exc:
+            raise RuntimeError(
+                "SIH26_TARGET_GP_MASTER must point to a GP master "
+                f"inside {gp_root}: {target_path}"
+            ) from exc
+        if (
+            not target_path.is_file()
+            or target_path.name != "gp_master.geojson"
+            or target_path.parent.name != "processed"
+        ):
+            raise RuntimeError(
+                "SIH26_TARGET_GP_MASTER must identify an existing "
+                f"processed/gp_master.geojson: {target_path}"
+            )
+        return [target_path]
+
     masters = sorted(
         project_root.joinpath("gp").glob("**/processed/gp_master.geojson")
     )
@@ -510,10 +539,30 @@ def read_raw(raw_path: Path) -> pd.DataFrame:
     return df[RAW_COLUMNS].copy()
 
 
+def normalize_raw_identity_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Use one canonical text representation for Earth Engine identifiers.
+
+    Earth Engine batch responses can represent the same GP identifier as an
+    integer in one response and as text in another.  Those values are distinct
+    to pandas ``groupby`` but become equal after the processed-output cast to
+    string, which previously produced duplicate processed GP rows.
+    """
+    out = df.copy()
+    for column in ("gp_id", "image_id"):
+        normalized = out[column].astype("string").str.strip()
+        if normalized.isna().any() or normalized.eq("").any():
+            raise RuntimeError(
+                f"Sentinel-1 raw observations contain a blank `{column}`."
+            )
+        out[column] = normalized
+    return out
+
+
 def deduplicate_raw(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df.copy()
 
+    df = normalize_raw_identity_columns(df)
     key = ["gp_id", "image_id"]
 
     before = len(df)
@@ -678,7 +727,7 @@ def build_processed_features(raw: pd.DataFrame) -> pd.DataFrame:
     if raw.empty:
         return pd.DataFrame()
 
-    work = raw.copy()
+    work = normalize_raw_identity_columns(raw)
 
     work["acquisition_date"] = pd.to_datetime(
         work["acquisition_date"],

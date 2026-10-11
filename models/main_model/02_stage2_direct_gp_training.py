@@ -59,8 +59,6 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, f1_score
 # CONFIGURATION
 # =====================================================================
 
-# Resolve from this file so the existing Stage-2 methodology can be invoked
-# from any checkout, rather than only from the original developer path.
 ROOT = Path(__file__).resolve().parents[2]
 MAIN_MODEL_DIR = ROOT / "models" / "main_model"
 
@@ -77,6 +75,11 @@ CACHE_META_FILENAME = "gp_era5_land_cache_metadata.json"
 # avoids repeatedly querying Earth Engine for already stored historical data.
 
 FORECAST_DAYS = range(1, 8)
+
+# scikit-learn's process-parallel ExtraTrees path emits one warning per tree
+# under the supported Python 3.14 runtime (and can flood the API worker log).
+# Keep fitting in-process so a block job has deterministic, readable progress.
+MODEL_N_JOBS = 1
 
 # One model per weather variable. Each model learns across D1-D7.
 # This replaces 28 independent horizon-specific models with 4 feature-specific
@@ -194,10 +197,20 @@ def initialize_earth_engine(project: str | None = None) -> None:
     except Exception as first_error:
         print("Earth Engine initialization failed.")
         print(f"Reason: {first_error}")
-        raise RuntimeError(
-            "Could not initialize Earth Engine.\n"
-            "Run `earthengine authenticate` once, then retry this Stage-2 command."
-        ) from first_error
+        print("Attempting Earth Engine authentication...")
+
+        try:
+            ee.Authenticate()
+            if project:
+                ee.Initialize(project=project)
+            else:
+                ee.Initialize()
+            print("Earth Engine authenticated and initialized.")
+        except Exception as second_error:
+            raise RuntimeError(
+                "Could not initialize Earth Engine.\n"
+                "Run `earthengine authenticate` once, or use --gee-project."
+            ) from second_error
 
 
 # =====================================================================
@@ -764,14 +777,12 @@ def fetch_gp_historical_era5(
 
     new_chunks = []
 
-    missing_dates = pd.DatetimeIndex(
-        missing_dates
-    )
-
-    if missing_dates.empty:
-        raise RuntimeError(
-            "Missing GP/day records were detected but no missing dates "
-            "were identified."
+    # ``all_dates`` is a DatetimeIndex when the cache is empty.  Pandas
+    # deliberately forbids a boolean test on an index, so test its size
+    # explicitly before creating the monthly extraction cursor.
+    if len(missing_dates) > 0:
+        missing_dates = pd.DatetimeIndex(
+            missing_dates
         )
 
     cursor = missing_dates.min()
@@ -1202,7 +1213,7 @@ def train_multioutput_regressor(
         max_features="sqrt",
         min_samples_leaf=5,
         random_state=42,
-        n_jobs=-1,
+        n_jobs=MODEL_N_JOBS,
     )
 
     model.fit(
@@ -1567,7 +1578,7 @@ def train_precipitation_feature_model(
         min_samples_leaf=5,
         class_weight="balanced",
         random_state=42,
-        n_jobs=-1,
+        n_jobs=MODEL_N_JOBS,
     )
 
     occurrence_model.fit(
@@ -1596,7 +1607,7 @@ def train_precipitation_feature_model(
         max_features="sqrt",
         min_samples_leaf=5,
         random_state=42,
-        n_jobs=-1,
+        n_jobs=MODEL_N_JOBS,
     )
 
     amount_model.fit(

@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Satara",
+  "block_requested": "JAWALI",
+  "resolved_block_name": "Jawali",
+  "block_lgd_code": "4559",
+  "district_name": "Satara",
+  "district_code": "527",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 124,
+  "area_km2": 561.7232905390313,
+  "centroid_lat": 17.7531220883308,
+  "centroid_lon": 73.81063089811082,
+  "bounds": {
+    "min_lon": 73.68086565480058,
+    "min_lat": 17.518215256099506,
+    "max_lon": 74.12191224287001,
+    "max_lat": 17.924858157044024
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}

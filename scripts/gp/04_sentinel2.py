@@ -1432,15 +1432,34 @@ def process_block(master_path: Path) -> None:
         configured_start=S2_START_DATE,
         configured_end=S2_END_DATE,
     )
+    existing_gp_ids = set(
+        existing_raw["gp_id"].astype(str).str.strip()
+    ) if not existing_raw.empty else set()
+    missing_gp_ids = gp_ids - existing_gp_ids
+    recovery_chunks = list(
+        date_chunks(
+            S2_START_DATE,
+            S2_END_DATE,
+            S2_DATE_CHUNK_DAYS,
+        )
+    ) if missing_gp_ids else []
+    planned_requests = 0
+    for indices in batches:
+        batch_ids = set(
+            gdf.iloc[indices]["gp_id"].astype(str).str.strip()
+        )
+        if batch_ids & missing_gp_ids:
+            planned_requests += len(recovery_chunks)
+        if batch_ids & existing_gp_ids:
+            planned_requests += len(incremental_chunks)
 
     log(f"GP batches: {len(batches)}")
     log(f"Missing/new date chunks: {len(incremental_chunks)}")
-    log(
-        f"Planned EE extraction requests: "
-        f"{len(batches) * len(incremental_chunks)}"
-    )
+    log(f"GPs with no persisted Sentinel-2 observations: {len(missing_gp_ids)}")
+    log(f"Historical recovery chunks: {len(recovery_chunks)}")
+    log(f"Planned EE extraction requests: {planned_requests}")
 
-    if not incremental_chunks:
+    if not incremental_chunks and not missing_gp_ids:
         log("")
         log("INCREMENTAL STATUS")
         log("  Existing Sentinel-2 data already reaches the requested end date.")
@@ -1456,23 +1475,28 @@ def process_block(master_path: Path) -> None:
             if not existing_raw.empty
             else "  Existing latest acquisition: none"
         )
-        log(
-            f"  New collection period starts: "
-            f"{incremental_chunks[0][0]}"
-        )
-        log(
-            f"  New collection period ends: "
-            f"{incremental_chunks[-1][1]}"
-        )
-        log(
-            f"  New date chunks: {len(incremental_chunks)}"
-        )
+        if incremental_chunks:
+            log(
+                f"  New collection period: "
+                f"{incremental_chunks[0][0]} -> {incremental_chunks[-1][1]}"
+            )
+            log(f"  New date chunks: {len(incremental_chunks)}")
+        if missing_gp_ids:
+            log(
+                f"  Recovering full configured history for "
+                f"{len(missing_gp_ids)} GPs with no persisted observations."
+            )
 
-    # Only create EE work for the missing/new period.
+    # Recover the configured history only for GPs with no observations;
+    # existing GPs continue to use the normal incremental date range.
     for batch_no, indices in enumerate(batches, 1):
         batch_gdf = gdf.iloc[indices].copy()
-        batch_fc = gdf_to_ee_fc(batch_gdf)
-        batch_aoi = batch_fc.geometry()
+        recovery_gdf = batch_gdf[
+            batch_gdf["gp_id"].astype(str).str.strip().isin(missing_gp_ids)
+        ]
+        incremental_gdf = batch_gdf[
+            batch_gdf["gp_id"].astype(str).str.strip().isin(existing_gp_ids)
+        ]
 
         log("")
         log(
@@ -1480,63 +1504,75 @@ def process_block(master_path: Path) -> None:
             f"({len(batch_gdf)} GPs)"
         )
 
-        for chunk_no, (start, end) in enumerate(
-            incremental_chunks,
-            1,
-        ):
-            t_chunk = timer()
-
-            log(
-                f"  Date chunk {chunk_no}/{len(incremental_chunks)}: "
-                f"{start} -> {end}"
+        query_plans = []
+        if not recovery_gdf.empty:
+            query_plans.append(
+                (recovery_gdf, recovery_chunks, "historical recovery")
+            )
+        if not incremental_gdf.empty:
+            query_plans.append(
+                (incremental_gdf, incremental_chunks, "incremental")
             )
 
-            try:
-                features, image_count = reduce_gp_batch_for_chunk(
-                    gp_batch=batch_fc,
-                    aoi=batch_aoi,
-                    start=start,
-                    end=end,
-                )
+        for query_gdf, chunks, query_kind in query_plans:
+            query_fc = gdf_to_ee_fc(query_gdf)
+            query_aoi = query_fc.geometry()
+            query_gp_ids = set(query_gdf["gp_id"].astype(str).str.strip())
 
-                total_images += image_count
-
-                if not features:
-                    log(
-                        f"    No observations returned; "
-                        f"images passing filter: {image_count}"
-                    )
-                    continue
-
-                frame = rows_to_dataframe(features)
-
-                if frame.empty:
-                    log("    Empty dataframe after parsing.")
-                    continue
-
-                validate_observations(
-                    frame,
-                    set(batch_gdf["gp_id"].astype(str)),
-                )
-
-                appended = append_new_observations(
-                    master_path,
-                    frame,
-                )
+            for chunk_no, (start, end) in enumerate(chunks, 1):
+                t_chunk = timer()
 
                 log(
-                    f"    images: {image_count}; "
-                    f"rows returned: {len(frame)}; "
-                    f"new rows appended: {appended}; "
-                    f"time: {seconds(t_chunk):.1f}s"
+                    f"  {query_kind} chunk {chunk_no}/{len(chunks)}: "
+                    f"{start} -> {end} ({len(query_gdf)} GPs)"
                 )
 
-            except Exception as exc:
-                raise RuntimeError(
-                    f"Sentinel-2 incremental extraction failed for "
-                    f"GP batch {batch_no}, date chunk "
-                    f"{start}->{end}: {exc}"
-                ) from exc
+                try:
+                    features, image_count = reduce_gp_batch_for_chunk(
+                        gp_batch=query_fc,
+                        aoi=query_aoi,
+                        start=start,
+                        end=end,
+                    )
+
+                    total_images += image_count
+
+                    if not features:
+                        log(
+                            f"    No observations returned; "
+                            f"images passing filter: {image_count}"
+                        )
+                        continue
+
+                    frame = rows_to_dataframe(features)
+
+                    if frame.empty:
+                        log("    Empty dataframe after parsing.")
+                        continue
+
+                    validate_observations(
+                        frame,
+                        query_gp_ids,
+                    )
+
+                    appended = append_new_observations(
+                        master_path,
+                        frame,
+                    )
+
+                    log(
+                        f"    images: {image_count}; "
+                        f"rows returned: {len(frame)}; "
+                        f"new rows appended: {appended}; "
+                        f"time: {seconds(t_chunk):.1f}s"
+                    )
+
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Sentinel-2 {query_kind} extraction failed for "
+                        f"GP batch {batch_no}, date chunk "
+                        f"{start}->{end}: {exc}"
+                    ) from exc
 
     # ----------------------------------------------------------------------
     # RELOAD AUTHORITATIVE PERSISTED RAW DATA

@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Pune",
+  "block_requested": "HAVELI",
+  "resolved_block_name": "Haveli",
+  "block_lgd_code": "4515",
+  "district_name": "Pune",
+  "district_code": "521",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 89,
+  "area_km2": 799.8942805025963,
+  "centroid_lat": 18.48737856481557,
+  "centroid_lon": 73.94990426526505,
+  "bounds": {
+    "min_lon": 73.62795071099313,
+    "min_lat": 18.323059725361116,
+    "max_lon": 74.19661189466272,
+    "max_lat": 18.68006897397968
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}

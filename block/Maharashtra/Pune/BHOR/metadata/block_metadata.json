@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Pune",
+  "block_requested": "BHOR",
+  "resolved_block_name": "Bhor",
+  "block_lgd_code": "4513",
+  "district_name": "Pune",
+  "district_code": "521",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 154,
+  "area_km2": 843.7676396724202,
+  "centroid_lat": 18.17094037791955,
+  "centroid_lon": 73.79979009121878,
+  "bounds": {
+    "min_lon": 73.59501541391376,
+    "min_lat": 18.020571450287882,
+    "max_lon": 74.05081827681248,
+    "max_lat": 18.40060608872646
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}
