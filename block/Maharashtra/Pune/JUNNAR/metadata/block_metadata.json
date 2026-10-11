@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Pune",
+  "block_requested": "JUNNAR",
+  "resolved_block_name": "Junnar",
+  "block_lgd_code": "4517",
+  "district_name": "Pune",
+  "district_code": "521",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 142,
+  "area_km2": 1343.3170402884978,
+  "centroid_lat": 19.202105066350352,
+  "centroid_lon": 73.95210411765488,
+  "bounds": {
+    "min_lon": 73.62969351540785,
+    "min_lat": 19.00361095723185,
+    "max_lon": 74.31616295355784,
+    "max_lat": 19.395124332715056
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}
