@@ -539,10 +539,30 @@ def read_raw(raw_path: Path) -> pd.DataFrame:
     return df[RAW_COLUMNS].copy()
 
 
+def normalize_raw_identity_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Use one canonical text representation for Earth Engine identifiers.
+
+    Earth Engine batch responses can represent the same GP identifier as an
+    integer in one response and as text in another.  Those values are distinct
+    to pandas ``groupby`` but become equal after the processed-output cast to
+    string, which previously produced duplicate processed GP rows.
+    """
+    out = df.copy()
+    for column in ("gp_id", "image_id"):
+        normalized = out[column].astype("string").str.strip()
+        if normalized.isna().any() or normalized.eq("").any():
+            raise RuntimeError(
+                f"Sentinel-1 raw observations contain a blank `{column}`."
+            )
+        out[column] = normalized
+    return out
+
+
 def deduplicate_raw(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df.copy()
 
+    df = normalize_raw_identity_columns(df)
     key = ["gp_id", "image_id"]
 
     before = len(df)
@@ -707,7 +727,7 @@ def build_processed_features(raw: pd.DataFrame) -> pd.DataFrame:
     if raw.empty:
         return pd.DataFrame()
 
-    work = raw.copy()
+    work = normalize_raw_identity_columns(raw)
 
     work["acquisition_date"] = pd.to_datetime(
         work["acquisition_date"],
