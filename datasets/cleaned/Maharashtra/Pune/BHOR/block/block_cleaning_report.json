@@ -1,0 +1,40 @@
+{
+  "created_utc": "2026-10-11T08:07:53.673296+00:00",
+  "location": [
+    "Maharashtra",
+    "Pune",
+    "BHOR"
+  ],
+  "reports": [
+    {
+      "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\block\\Maharashtra\\Pune\\BHOR\\processed\\merge\\block_observations_daily.csv",
+      "rows": 1839,
+      "exact_duplicate_rows_removed": 0,
+      "infinite_to_nan": 0,
+      "imputation": false,
+      "interpolation": false,
+      "outlier_removal": false,
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Pune\\BHOR\\block\\block_observations_daily.csv"
+    },
+    {
+      "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\block\\Maharashtra\\Pune\\BHOR\\processed\\merge\\block_forecast_training_base.csv",
+      "rows": 996,
+      "exact_duplicate_rows_removed": 0,
+      "infinite_to_nan": 0,
+      "imputation": false,
+      "interpolation": false,
+      "outlier_removal": false,
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Pune\\BHOR\\block\\block_forecast_training_base.csv"
+    },
+    {
+      "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\block\\Maharashtra\\Pune\\BHOR\\processed\\merge\\block_current_forecast.csv",
+      "rows": 7,
+      "exact_duplicate_rows_removed": 0,
+      "infinite_to_nan": 0,
+      "imputation": false,
+      "interpolation": false,
+      "outlier_removal": false,
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Pune\\BHOR\\block\\block_current_forecast.csv"
+    }
+  ]
+}
