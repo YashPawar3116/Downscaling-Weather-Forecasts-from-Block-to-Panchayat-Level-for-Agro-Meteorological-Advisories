@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Ahilyanagar",
+  "block_requested": "AKOLE",
+  "resolved_block_name": "Akole",
+  "block_lgd_code": "4277",
+  "district_name": "Ahilyanagar",
+  "district_code": "522",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 148,
+  "area_km2": 1467.7238874466414,
+  "centroid_lat": 19.513805689041465,
+  "centroid_lon": 73.90279519774484,
+  "bounds": {
+    "min_lon": 73.61437545306453,
+    "min_lat": 19.249531795850302,
+    "max_lon": 74.12135153602924,
+    "max_lat": 19.751959090345004
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}

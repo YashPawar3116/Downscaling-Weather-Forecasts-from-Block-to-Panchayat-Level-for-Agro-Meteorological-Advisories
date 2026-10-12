@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Pune",
+  "block_requested": "DAUND",
+  "resolved_block_name": "Daund",
+  "block_lgd_code": "4514",
+  "district_name": "Pune",
+  "district_code": "521",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 76,
+  "area_km2": 1244.6509356192837,
+  "centroid_lat": 18.451898871963284,
+  "centroid_lon": 74.4545644005344,
+  "bounds": {
+    "min_lon": 74.14156531066982,
+    "min_lat": 18.295318345595895,
+    "max_lon": 74.84475789484512,
+    "max_lat": 18.67152539896864
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}
