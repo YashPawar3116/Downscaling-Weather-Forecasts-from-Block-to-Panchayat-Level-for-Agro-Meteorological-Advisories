@@ -93,6 +93,32 @@ def forecast_is_current(location):
         return bool(target_dates) and max(target_dates)>=datetime.now(ZoneInfo('Asia/Kolkata')).date()
     except (OSError,KeyError,TypeError,ValueError):
         return False
+def configure_cdsapi_credentials():
+    """Materialize Render's secret environment variables for cdsapi if needed.
+
+    A developer's local %USERPROFILE%\\.cdsapirc is never copied into the
+    repository. Hosted deployments can provide CDSAPI_URL and CDSAPI_KEY as
+    private service environment variables instead.
+    """
+    config_path=Path.home()/'.cdsapirc'
+    if config_path.is_file():
+        return
+    url=os.environ.get('CDSAPI_URL','').strip()
+    key=os.environ.get('CDSAPI_KEY','').strip()
+    if not url or not key or any(char in url+key for char in '\r\n'):
+        return
+    payload=f'url: {url}\nkey: {key}\n'
+    try:
+        fd=os.open(config_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    except FileExistsError:
+        # Another request may have initialized the shared service config.
+        return
+    with os.fdopen(fd,'w',encoding='utf-8',newline='\n') as config:
+        config.write(payload)
+    try:
+        config_path.chmod(0o600)
+    except OSError:
+        pass
 def advisory_is_healthy(port):
     try:
         with urlopen(f'http://127.0.0.1:{port}/api/health',timeout=0.6) as response:
@@ -224,6 +250,7 @@ def run_block_processing(job_id,location):
     # completed artifacts.
     command=[sys.executable,'-u',str(ROOT/'run_pipeline.py'),'--state',location['state'],'--district',location['district'],'--block',location['block'],'--to-stage','stage2','--force']
     try:
+        configure_cdsapi_credentials()
         process=subprocess.Popen(command,cwd=ROOT,env={**os.environ,'PYTHONIOENCODING':'utf-8'},stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace',bufsize=1)
         failure_hint=None
         active_stage=None
@@ -258,7 +285,7 @@ def run_block_processing(job_id,location):
                 elif 'cdsapi is not installed' in lower:
                     failure_hint='The ERA5-Land stage requires the project dependency `cdsapi`. Install the project requirements, then retry.'
                 elif 'missing/incomplete configuration file' in lower and '.cdsapirc' in lower:
-                    failure_hint='The ERA5-Land stage requires Copernicus CDS API credentials in `%USERPROFILE%\\.cdsapirc`. Configure them locally, then retry; do not send credentials in chat.'
+                    failure_hint='The ERA5-Land stage requires Copernicus CDS API credentials. Locally, configure `%USERPROFILE%\\.cdsapirc`; on Render, set the private `CDSAPI_URL` and `CDSAPI_KEY` service variables, then redeploy.'
                 elif 'soil qc failed' in lower:
                     failure_hint='SoilGrids QC failed because source values are missing for one or more GP soil properties. No soil values were imputed; check the backend log for the missing-source count.'
                 elif 'missing_source_cells' in lower:
@@ -455,8 +482,10 @@ class Handler(BaseHTTPRequestHandler):
             if location is None:
                 return self.send_json({'error':'The selected state, district and block are not present in the official location registry.'},404)
             try:
-                if valid_forecast_output(location) and forecast_is_current(location):
+                if valid_forecast_output(location):
                     data=block_data(location['state'],location['district'],location['block'])
+                    if data is not None:
+                        data['forecastStatus']='current' if forecast_is_current(location) else 'latest_available'
                 else:
                     data=None
             except (OSError,ValueError,KeyError) as exc:return self.send_json({'error':str(exc)},500)
