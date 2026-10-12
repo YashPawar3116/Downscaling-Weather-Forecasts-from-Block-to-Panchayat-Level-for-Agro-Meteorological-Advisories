@@ -334,6 +334,14 @@
 .twin-advisory-summary span { font-size: 10px; }
 .twin-resource-row > .twin-panel > p,
 .twin-footer, .twin-stale-banner, .twin-scenario-banner { color: #465f6d; font-size: 11px; }
+.twin-impact-chain,
+.twin-intervention-comparison,
+.twin-why-change { display: none; }
+.twin-impact-panel { margin-top: 9px; }
+.twin-impact-panel .twin-panel-heading { min-height: auto; padding-bottom: 0; }
+.twin-impact-panel .twin-panel-heading p { max-width: 760px; line-height: 1.45; }
+.twin-intervention-row { grid-template-columns: minmax(190px, .62fr) minmax(0, 2fr); padding: 8px 12px 12px; background: #f8fcfb; border-top: 1px solid #dcece7; }
+.twin-intervention-row p { color: #294f5e; font-weight: 600; }
 .twin-scenario-banner { color: #1e584e; }
 .twin-scenario-banner button { font-size: 10px; }
 .twin-chart-area { min-height: 190px; }

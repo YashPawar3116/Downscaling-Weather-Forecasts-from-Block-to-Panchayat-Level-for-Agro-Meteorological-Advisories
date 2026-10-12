@@ -189,13 +189,16 @@ export default function PanchayatView({ baseline, scenario, selectedId, dayIndex
       try {
         map.addSource('terrain', {
           type: 'raster-dem',
-          url: 'https://tiles.mapterhorn.com/tilejson.json',
+          tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          encoding: 'terrarium',
+          maxzoom: 15,
         })
         map.setTerrain({ source: 'terrain', exaggeration: 1.5 })
         map.addLayer({ id: 'terrain-hillshade', type: 'hillshade', source: 'terrain', paint: { 'hillshade-shadow-color': '#233a3a', 'hillshade-highlight-color': '#f8fff2', 'hillshade-exaggeration': 0.45 } }, 'gp-weather-fill')
       } catch (reason) {
         setDemStatus('unavailable')
-        setMapError(`3D terrain unavailable: ${reason instanceof Error ? reason.message : 'This browser could not enable terrain.'} Panchayat weather boundaries remain available.`)
+        // Keep the weather map usable if terrain is unsupported; this is not a map failure.
       }
       const currentSelected = current.baseline.gps.find(gp => gp.id === current.selectedId)
       if (currentSelected) focusSelected(map, current.baseline, currentSelected)
@@ -215,9 +218,10 @@ export default function PanchayatView({ baseline, scenario, selectedId, dayIndex
     map.on('error', event => {
       const sourceId = 'sourceId' in event ? String(event.sourceId ?? '') : ''
       const message = event.error?.message ?? ''
-      if (sourceId === 'terrain' || /mapterhorn/i.test(message)) {
+      if (sourceId === 'terrain' || /elevation-tiles-prod|terrain/i.test(message)) {
         setDemStatus('unavailable')
         if (terrainLoadTimeout !== undefined) window.clearTimeout(terrainLoadTimeout)
+        return
       }
       if (sourceId.includes('satellite')) setMapError(`Satellite basemap unavailable: ${message || 'tile request failed.'}`)
       else if (message) setMapError(`3D map error: ${message}`)
