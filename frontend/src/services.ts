@@ -43,12 +43,12 @@ async function loadBlock(state:string,district:string,block:string,key:string,on
       onProcessingStatus?.(statusPayload)
       if(statusPayload.status==='failed')throw new Error(statusPayload.error||'Block processing failed. Check the backend logs for details.')
       if(statusPayload.status==='completed')break
-      await wait(1500)
+      await wait(500)
     }
     response=await fetch(apiPath(`/api/block?${q}`))
     payload=await response.json()
   }
   if(!response.ok)throw new Error(payload.error||(response.status===404?'The selected block is not in the official location registry.':'Could not load block weather'))
-  completedBlocks.set(key, { data: payload, expiresAt: Date.now() + 30_000 })
+  completedBlocks.set(key, { data: payload, expiresAt: Date.now() + 5 * 60_000 })
   return payload
 }

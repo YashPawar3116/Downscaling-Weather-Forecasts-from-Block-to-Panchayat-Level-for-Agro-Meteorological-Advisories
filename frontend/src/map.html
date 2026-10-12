@@ -602,20 +602,19 @@ import * as turf
    These are OpenStreetMap-derived vector styles.
 ========================================================= */
 
+const rasterStyle = (tiles, attribution) => ({
+    version: 8,
+    sources: { basemap: { type: "raster", tiles, tileSize: 256, attribution } },
+    layers: [{ id: "basemap", type: "raster", source: "basemap" }]
+});
+
+// Use a raster basemap here: the remote vector styles reference invalid glyph
+// ranges, null-valued expressions, and a missing sprite image.
 const OPENFREE_MAP = {
-
-    liberty:
-        "https://tiles.openfreemap.org/styles/liberty",
-
-    positron:
-        "https://tiles.openfreemap.org/styles/positron",
-
-    dark:
-        "https://tiles.openfreemap.org/styles/dark",
-
-    fiord:
-        "https://tiles.openfreemap.org/styles/fiord"
-
+    liberty: rasterStyle(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "© OpenStreetMap contributors"),
+    positron: rasterStyle(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "© OpenStreetMap contributors"),
+    dark: rasterStyle(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "© OpenStreetMap contributors"),
+    fiord: rasterStyle(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "© OpenStreetMap contributors")
 };
 
 
@@ -1780,7 +1779,7 @@ function addApplicationLayers() {
                 ],
 
                 "text-rotate":
-                    ["get", "wind_direction"],
+                    ["coalesce", ["get", "wind_direction"], 0],
 
                 "text-rotation-alignment":
                     "map",
@@ -2145,9 +2144,9 @@ function setSelectedGP(
     const selectedBoundaryFeatures = (GP_BOUNDARIES.features || []).filter(item => String(item.properties?.gp_id ?? item.properties?.id ?? "") === String(id));
     if (selectedBoundaryFeatures.length) {
         const bounds = turf.bbox({ type: "FeatureCollection", features: selectedBoundaryFeatures });
-        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 70, maxZoom: 13, duration: 850 });
+        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 70, maxZoom: 11, duration: 850 });
     } else {
-        map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(map.getZoom(), 12), duration: 850 });
+        map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(map.getZoom(), 10), duration: 850 });
     }
 
 
@@ -2265,7 +2264,7 @@ function updateWeatherVisualization() {
     map.setPaintProperty("weather-points", "circle-color", expression);
     map.setPaintProperty("weather-points", "circle-radius", ["interpolate", ["linear"], ["zoom"], 7, 7, 10, 10, 13, 13, 16, 16]);
     map.setPaintProperty("weather-points", "circle-opacity", samples.length ? 1 : 0);
-    map.setPaintProperty("gp-boundary-fill", "fill-color", ["interpolate", ["linear"], ["get", "weatherValue"], low, colors[0], middle, colors[1], high, colors[2]]);
+    map.setPaintProperty("gp-boundary-fill", "fill-color", ["interpolate", ["linear"], ["coalesce", ["get", "weatherValue"], low], low, colors[0], middle, colors[1], high, colors[2]]);
     map.setPaintProperty("gp-boundary-fill", "fill-opacity", samples.length ? ["interpolate", ["linear"], ["zoom"], 7, 0.26, 12, 0.38, 15, 0.44] : 0.03);
     if (map.getSource("gp-boundaries")) {
         const enriched = { ...GP_BOUNDARIES, features: (GP_BOUNDARIES.features || []).map(feature => {

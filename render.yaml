@@ -5,3 +5,8 @@ services:
     buildCommand: python -m pip install -r requirements.txt && cd agri_advisory && npm install --omit=dev && cd ../frontend && npm ci && npm run build
     startCommand: python frontend/server.py
     healthCheckPath: /api/locations
+    envVars:
+      - key: CDSAPI_URL
+        sync: false
+      - key: CDSAPI_KEY
+        sync: false

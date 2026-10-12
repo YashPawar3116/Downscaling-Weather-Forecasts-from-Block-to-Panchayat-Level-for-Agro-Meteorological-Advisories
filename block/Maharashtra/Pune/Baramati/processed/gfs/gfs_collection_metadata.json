@@ -2,7 +2,7 @@
   "state": "Maharashtra",
   "district": "Pune",
   "block": "Baramati",
-  "latitude": 18.208644677739866,
+  "latitude": 18.208644677739898,
   "longitude": 74.45162954697538,
   "source": "NOAA GFS via Open-Meteo",
   "endpoint": "https://api.open-meteo.com/v1/gfs",

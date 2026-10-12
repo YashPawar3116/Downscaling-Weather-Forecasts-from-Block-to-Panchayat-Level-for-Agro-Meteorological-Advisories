@@ -16,9 +16,9 @@ Open the Vite URL shown in the terminal. Both `npm run dev` and `npm run dev:fro
 
 ## Deploy
 
-Deploy the API to Render from the repository root. The included `render.yaml` starts `python frontend/server.py`. It serves the versioned forecast snapshots and GP data in this repository; it uses no secret environment variables. New forecasts must be committed (or moved to external storage) before they appear in the deployment.
+Deploy the API to Render from the repository root. The included `render.yaml` starts `python frontend/server.py`. If Render needs to run the ERA5-Land pipeline, add the Copernicus CDS API URL and key as the private `CDSAPI_URL` and `CDSAPI_KEY` service variables. The backend writes these to its private home-directory `.cdsapirc` at runtime; credentials must never be committed to this repository. A local `%USERPROFILE%\\.cdsapirc` is available to local pipeline runs but is not copied to Render. Existing valid forecast snapshots remain available when their dates are older than today; deploy updated snapshots to publish newer forecast runs.
 
-Deploy the static site to Vercel with `frontend` as the Root Directory. Set the Vercel environment variable `VITE_API_BASE_URL` to your Render service URL, for example `https://hyperweather-api.onrender.com`, then redeploy. Do not set this variable to a secret: all `VITE_` variables are included in the browser bundle.
+Deploy the static site to Vercel with `frontend` as the Root Directory. `frontend/vercel.json` routes `/api` and `/agri-api` requests to `https://hyperweather-api.onrender.com`; redeploy after changing that service URL. Do not put CDS credentials or other secrets in Vercel `VITE_` variables, because those are included in the browser bundle.
 
 The API discovers blocks that have an existing `stage2_current_gp_forecast.csv`. It loads only the requested block and uses that block's GP geometry. Environmental fields display as unavailable when the repository has no matching source value. The external OpenStreetMap tile service is used for the basemap.
 

@@ -10,6 +10,7 @@ import { direction, distanceKm, neighboringPanchayats } from './spatial'
 import { getBlock } from './services'
 import type { BlockData, ForecastDay, GPWeather, LandCoverClass, LocationOption } from './types'
 import { useLanguage } from './language'
+import { defaultLocation as preferredLocation } from './locationDefaults'
 import './digital-twin.css'
 
 const PanchayatView = lazy(() => import('./PanchayatView'))
@@ -42,9 +43,7 @@ const CATEGORY_LABELS: Record<LandCoverClass, string> = {
 const LAND_COLORS = ['#169a73', '#f5bb31', '#ed8750', '#35a6c5', '#7987a5', '#66b8a6', '#d2a17a', '#9b8c76', '#c5d4e2']
 
 function defaultLocation(locations: LocationOption[]) {
-  return locations.find(item => item.state === 'Maharashtra' && item.district === 'Pune' && normalized(item.block) === 'baramati' && item.available !== false)
-    ?? locations.find(item => item.available !== false)
-    ?? locations[0]
+  return preferredLocation(locations)
 }
 
 function forecastValue(day: ForecastDay | undefined, variable: Variable) {
@@ -102,7 +101,7 @@ function ScenarioSlider({ label, value, min, max, step, unit, onChange, hint }: 
   return <label className="scenario-slider">
     <span>{t(label)}<b>{value > 0 ? '+' : ''}{value}{unit}</b></span>
     <input type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))}/>
-    <small>{hint}</small>
+    <small>{t(hint)}</small>
   </label>
 }
 
@@ -167,7 +166,7 @@ function NeighbourTable({ data, selected, dayIndex }: { data: BlockData; selecte
   const neighbours = neighboringPanchayats(data.gps, data.gpGeometry, selected)
   return <section className="twin-panel twin-neighbour-panel" id="twin-comparative">
     <header className="twin-panel-heading"><div><h2><MapPin size={17}/> {t('Neighbouring Panchayat Comparison')}</h2><p>{t('Adjacent boundaries first, then nearest available GPs')} · {t('Day')} {dayIndex + 1}</p></div></header>
-    <div className="twin-table-wrap"><table><thead><tr><th>Panchayat</th><th>Distance</th><th>Direction</th><th>Rain (mm)</th><th>Temp (°C)</th><th>Humidity</th><th>Wind (km/h)</th></tr></thead><tbody>{neighbours.map((gp, index) => {
+    <div className="twin-table-wrap"><table><thead><tr><th>{t('Panchayat')}</th><th>{t('Distance')}</th><th>{t('Direction')}</th><th>{t('Rain (mm)')}</th><th>{t('Temp (°C)')}</th><th>{t('Humidity')}</th><th>{t('Wind (km/h)')}</th></tr></thead><tbody>{neighbours.map((gp, index) => {
       const day = gp.forecast[dayIndex]
       return <tr key={gp.id} className={gp.id === selected.id ? 'selected-row' : ''}><td><b>{gp.name}</b>{index === 0 && <small>Selected</small>}</td><td>{index === 0 ? '—' : distanceKm(selected, gp) == null ? '—' : `${numberLabel(distanceKm(selected, gp), 2)} km`}</td><td>{index === 0 ? '—' : direction(selected, gp) ?? '—'}</td><td>{numberLabel(day?.rainfall)}</td><td>{numberLabel(day?.temperature)}</td><td>{numberLabel(day?.humidity, 0)}{day?.humidity == null ? '' : '%'}</td><td>{numberLabel(kmh(day?.wind))}</td></tr>
     })}</tbody></table></div>
@@ -392,7 +391,7 @@ export default function DigitalTwinDashboard({ locations }: { locations: Locatio
         <label className="twin-select"><span>{t('Gram Panchayat')}</span><div><select aria-label={t('Gram Panchayat')} value={baselineGp?.id ?? ''} onChange={event => selectGp(event.target.value)}>{data?.gps.map(gp => <option key={gp.id} value={gp.id}>{gp.name}</option>)}</select><ChevronDown size={14}/></div></label>
         <label className="twin-date-select"><CalendarDays size={15}/><span className="twin-date-caption">{t('Replay target')}</span><select aria-label={t('Replay stored Panchayat model target date')} value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{baselineGp?.forecast.map(day => <option key={day.date} value={day.date}>{dateLabel(day.date)}</option>)}</select><ChevronDown size={13}/></label>
         <label className="twin-language"><select aria-label={t('Language')} value={language} onChange={event => setLanguage(event.target.value as typeof language)}><option value="en">{t('English')}</option><option value="mr">{t('Marathi')}</option><option value="hi">{t('Hindi')}</option></select><ChevronDown size={13}/></label>
-        <button className="twin-profile" aria-label="Profile"><UserRound size={17}/></button>
+        <button className="twin-profile" aria-label={t('Profile')}><UserRound size={17}/></button>
       </div>
     </header>
     <nav className="twin-nav" aria-label="Digital Twin sections">{[
@@ -402,7 +401,7 @@ export default function DigitalTwinDashboard({ locations }: { locations: Locatio
     <main className="twin-workspace" id="twin-overview">
       {stale && data && <div className="twin-stale-banner"><AlertTriangle size={15}/><span>{t('Historical replay: stored Panchayat model target, not an observed weather record. Historical GP observations are not available from the current API.')}</span></div>}
       {activeScenario && <div className="twin-scenario-banner"><Activity size={15}/><span>{t('Scenario applied in memory · baseline source data is unchanged')}</span><button onClick={resetScenario}><RefreshCcw size={13}/> {t('Reset scenario')}</button></div>}
-      {busy ? <div className="twin-loading"><span className="twin-spinner"/>{processing || 'Loading real Panchayat forecast and boundaries…'}</div> : error ? <div className="twin-error"><AlertTriangle/><div><b>Forecast unavailable</b><p>{error}</p></div></div> : data && scenarioData && baselineGp && scenarioGp ? <>
+      {busy ? <div className="twin-loading"><span className="twin-spinner"/>{t(processing || 'Loading real Panchayat forecast and boundaries…')}</div> : error ? <div className="twin-error"><AlertTriangle/><div><b>{t('Forecast unavailable')}</b><p>{error}</p></div></div> : data && scenarioData && baselineGp && scenarioGp ? <>
         <section className="twin-replay-strip" aria-label={t('Historical replay timeline')}>
           <article><small>{t('Historical baseline')}</small><b>{t('GP observation unavailable')}</b><span>{t("The available historical archive is block-level and cannot be represented as this Panchayat's observation.")}</span></article>
           <span aria-hidden="true">→</span>
@@ -456,10 +455,10 @@ export default function DigitalTwinDashboard({ locations }: { locations: Locatio
           <aside className="twin-right-column">
             <section className="twin-panel twin-selected-panel">
               <header className="twin-panel-heading"><div><h2>{t('Selected Panchayat')}</h2><p><b>{baselineGp.name}</b> · GP ID {baselineGp.id}<br/>{location.block} {t('Block')}, {location.district}, {location.state}</p></div><a href={`/gp/${encodeURIComponent(baselineGp.id)}`}>{t('View details →')}</a></header>
-              <div className="twin-baseline-head"><span>Metric · Day {dateIndex + 1}</span><span>Baseline</span><span>Scenario</span></div>
+              <div className="twin-baseline-head"><span>{t('Metric')} · {t('Day')} {dateIndex + 1}</span><span>{t('Baseline')}</span><span>{t('Scenario')}</span></div>
               <div className="twin-metrics">{VARIABLES.filter(item => visibleVariables.has(item.key)).map(item => <MetricRow key={item.key} variable={item} baseline={forecastValue(baselineDay, item.key)} scenario={forecastValue(scenarioDay, item.key)}/>)}</div>
               <div className="twin-history-note"><small>{t('Historical replay · stored model target')}</small><b>{dateLabel(selectedDate)}</b><span>{t('The selector replays stored GP forecast targets. No matching GP observation or prior-run archive is provided, so this is not an actual-versus-forecast comparison.')}</span></div>
-              <div className="twin-threshold-status"><span className={scenarioStatus(scenarioDay, applied).includes('reached') ? 'threshold-hit' : ''}>{scenarioStatus(scenarioDay, applied)}</span><small>Threshold {applied.rainfallThresholdMm} mm</small></div>
+              <div className="twin-threshold-status"><span className={scenarioStatus(scenarioDay, applied).includes('reached') ? 'threshold-hit' : ''}>{t(scenarioStatus(scenarioDay, applied))}</span><small>{t('Threshold')} {applied.rainfallThresholdMm} mm</small></div>
               <div className="twin-confidence-note"><b>{t('Forecast confidence')}</b><span>{t('Confidence not available · no calibrated uncertainty or confidence interval is supplied by this API.')}</span></div>
             </section>
           </aside>
@@ -477,22 +476,22 @@ export default function DigitalTwinDashboard({ locations }: { locations: Locatio
         </div>
         <section className="twin-impact-panel">
           <header className="twin-panel-heading"><div><h2><Activity size={18}/> {t('Scenario impact chain & interventions')}</h2><p>{t('Transparent forecast-threshold workflow · not a calibrated crop or hydrology model')}</p></div></header>
-          <div className="twin-impact-chain"><article><small>1 · Weather input</small><b>{applied.rainfallDeltaPct ? `Rainfall ${applied.rainfallDeltaPct > 0 ? '+' : ''}${applied.rainfallDeltaPct}%` : 'Baseline rainfall'}{applied.temperatureDeltaC ? ` · Temperature ${applied.temperatureDeltaC > 0 ? '+' : ''}${applied.temperatureDeltaC} °C` : ''}{applied.humidityDeltaPct ? ` · Humidity ${applied.humidityDeltaPct > 0 ? '+' : ''}${applied.humidityDeltaPct}%` : ''}{applied.windDeltaKmh ? ` · Wind ${applied.windDeltaKmh > 0 ? '+' : ''}${applied.windDeltaKmh} km/h` : ''}</b></article><span aria-hidden="true">→</span><article><small>2 · Recalculated signal</small><b>{advisories.length ? advisories.map(item => item.title).join(' · ') : agriculturePlanningSignal}</b></article><span aria-hidden="true">→</span><article><small>3 · Planning response</small><b>{intervention === 'none' ? 'Review local conditions and advisory' : interventionSignal}</b></article></div>
-          <div className="twin-intervention-row"><label><span>Compare a planning intervention</span><select value={intervention} onChange={event => setIntervention(event.target.value as Intervention)}><option value="none">No intervention</option><option value="drainage">Drainage preparation</option><option value="irrigation">Delay irrigation · check rainfall</option><option value="water-storage">Increase water storage</option><option value="crop-protection">Protect sensitive crop area</option></select></label><p>{intervention === 'none' ? interventionDescriptions.none : `${interventionDescriptions[intervention]} ${interventionSignal}`} Weather-triggered values are recalculated; intervention effectiveness is not available.</p></div>
-          <div className="twin-intervention-comparison"><article><small>Without intervention</small><b>{advisories.length ? advisories.map(item => item.title).join(' · ') : waterPlanningStatus}</b><span>{agriculturePlanningSignal}</span></article><article><small>With {intervention === 'none' ? 'selected intervention' : intervention.replace('-', ' ')}</small><b>{interventionSignal}</b><span>Weather triggers remain the same. Numeric risk reduction is unavailable without measured intervention capacity and effectiveness.</span></article></div>
+          <div className="twin-impact-chain"><article><small>1 · {t('Weather input')}</small><b>{applied.rainfallDeltaPct ? `${t('Rainfall')} ${applied.rainfallDeltaPct > 0 ? '+' : ''}${applied.rainfallDeltaPct}%` : t('Baseline rainfall')}{applied.temperatureDeltaC ? ` · ${t('Temperature')} ${applied.temperatureDeltaC > 0 ? '+' : ''}${applied.temperatureDeltaC} °C` : ''}{applied.humidityDeltaPct ? ` · ${t('Humidity')} ${applied.humidityDeltaPct > 0 ? '+' : ''}${applied.humidityDeltaPct}%` : ''}{applied.windDeltaKmh ? ` · ${t('Wind')} ${applied.windDeltaKmh > 0 ? '+' : ''}${applied.windDeltaKmh} km/h` : ''}</b></article><span aria-hidden="true">→</span><article><small>2 · {t('Recalculated signal')}</small><b>{advisories.length ? advisories.map(item => t(item.title)).join(' · ') : t(agriculturePlanningSignal)}</b></article><span aria-hidden="true">→</span><article><small>3 · {t('Planning response')}</small><b>{intervention === 'none' ? t('Review local conditions and advisory') : t(interventionSignal)}</b></article></div>
+          <div className="twin-intervention-row"><label><span>{t('Compare a planning intervention')}</span><select value={intervention} onChange={event => setIntervention(event.target.value as Intervention)}><option value="none">{t('No intervention')}</option><option value="drainage">{t('Drainage preparation')}</option><option value="irrigation">{t('Delay irrigation · check rainfall')}</option><option value="water-storage">{t('Increase water storage')}</option><option value="crop-protection">{t('Protect sensitive crop area')}</option></select></label><p>{t(interventionDescriptions[intervention])} {intervention === 'none' ? '' : t(interventionSignal)} {t('Weather-triggered values are recalculated; intervention effectiveness is not available.')}</p></div>
+          <div className="twin-intervention-comparison"><article><small>{t('Without intervention')}</small><b>{advisories.length ? advisories.map(item => t(item.title)).join(' · ') : t(waterPlanningStatus)}</b><span>{t(agriculturePlanningSignal)}</span></article><article><small>{t('With')} {intervention === 'none' ? t('selected intervention') : t(intervention.replace('-', ' '))}</small><b>{t(interventionSignal)}</b><span>{t('Weather triggers remain the same. Numeric risk reduction is unavailable without measured intervention capacity and effectiveness.')}</span></article></div>
           <div className="twin-why-change"><b>Why did this change?</b><span>{activeScenario ? `The selected weather offsets changed the stored Panchayat forecast values. Existing rainfall, temperature, humidity, and wind rules were re-evaluated for ${dateLabel(selectedDate)}; derived charts, map colors, rainfall totals, and advisory prompts use those adjusted values.` : `No weather adjustment is applied. The dashboard shows the stored baseline model target for ${dateLabel(selectedDate)}.`}</span></div>
         </section>
         <section className="twin-insight-strip" id="twin-insights">
-          <header><b>Key Insights</b><small>{activeScenario ? 'Scenario interpretation · selected GP' : 'Baseline interpretation · selected GP'}</small></header>
+          <header><b>{t('Key Insights')}</b><small>{activeScenario ? `${t('Scenario interpretation')} · ${t('selected GP')}` : `${t('Baseline interpretation')} · ${t('selected GP')}`}</small></header>
           <div className="twin-insight-items">
-            <article><CloudRain/><div><b>Rainfall &amp; water response</b><p>{scenarioInsights[0] ?? 'Rainfall forecast details are unavailable.'} Rainfall can influence soil-water input; no measured soil-moisture series is available here.</p></div></article>
-            <article><Thermometer/><div><b>Temperature</b><p>{scenarioDay?.temperature == null ? 'Temperature forecast is unavailable.' : `${numberLabel(scenarioDay.temperature)} °C in the selected scenario.`} {applied.temperatureDeltaC ? `Adjusted ${applied.temperatureDeltaC > 0 ? '+' : ''}${applied.temperatureDeltaC} °C from baseline. ` : ''}{temperatureInterpretation}</p></div></article>
-            <article><Wind/><div><b>Weather risk checks</b><p>{advisories.length ? advisories.map(item => item.title).join(' · ') : 'No configured forecast threshold is triggered for the displayed horizon.'} These are rule-based prompts, not measured impact.</p></div></article>
-            <article><Sprout/><div><b>Agriculture &amp; soil context</b><p>{scenarioDay?.humidity == null ? 'Humidity data unavailable.' : `Humidity ${numberLabel(scenarioDay.humidity, 0)}%.`} Soil-moisture context: {applied.soilMoisture} (user scenario assumption).</p></div></article>
+            <article><CloudRain/><div><b>{t('Rainfall & water response')}</b><p>{t(scenarioInsights[0] ?? 'Rainfall forecast details are unavailable.')} {t('Rainfall can influence soil-water input; no measured soil-moisture series is available here.')}</p></div></article>
+            <article><Thermometer/><div><b>{t('Temperature')}</b><p>{scenarioDay?.temperature == null ? t('Temperature forecast is unavailable.') : `${numberLabel(scenarioDay.temperature)} °C · ${t('selected scenario')}`} {applied.temperatureDeltaC ? `${t('Adjusted from baseline')}: ${applied.temperatureDeltaC > 0 ? '+' : ''}${applied.temperatureDeltaC} °C. ` : ''}{t(temperatureInterpretation)}</p></div></article>
+            <article><Wind/><div><b>{t('Weather risk checks')}</b><p>{advisories.length ? advisories.map(item => t(item.title)).join(' · ') : t('No configured forecast threshold is triggered for the displayed horizon.')} {t('These are rule-based prompts, not measured impact.')}</p></div></article>
+            <article><Sprout/><div><b>{t('Agriculture & soil context')}</b><p>{scenarioDay?.humidity == null ? t('Humidity data unavailable.') : `${t('Humidity')} ${numberLabel(scenarioDay.humidity, 0)}%.`} {t('Soil-moisture context')}: {t(applied.soilMoisture)} ({t('user scenario assumption')}).</p></div></article>
           </div>
         </section>
       </> : null}
-      <footer className="twin-footer">Baseline: existing calculated GP forecast · Scenario: deterministic in-memory adjustment · Historical deltas, live data, and terrain surfaces are shown only when supplied by project outputs.</footer>
+      <footer className="twin-footer">{t('Baseline: existing calculated GP forecast · Scenario: deterministic in-memory adjustment · Historical deltas, live data, and terrain surfaces are shown only when supplied by project outputs.')}</footer>
     </main>
   </div>
 }

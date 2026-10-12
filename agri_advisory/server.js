@@ -53,6 +53,15 @@ app.use(
     })
 );
 
+// Accept both direct API paths and the frontend's /agri-api proxy prefix.
+// This keeps Vercel, the Python reverse proxy, and local Vite requests aligned.
+app.use((req, res, next) => {
+    if (req.url === "/agri-api" || req.url.startsWith("/agri-api/")) {
+        req.url = req.url.slice("/agri-api".length) || "/";
+    }
+    next();
+});
+
 
 /* ==========================================
    RATE LIMITING
@@ -149,11 +158,11 @@ app.get(
 
 app.post("/api/assistant", advisoryLimiter, (req, res) => {
     try {
-        const { question, crop, language = "en", weather } = req.body || {};
+        const { question, crop, language = "en", weather, location } = req.body || {};
         if (!weather || typeof weather !== "object") {
             return res.status(400).json({ success: false, error: "Weather data is required." });
         }
-        const result = answerFarmQuestion({ question, crop, language, weather });
+        const result = answerFarmQuestion({ question, crop, language, weather, location });
         return res.json({ success: true, ...result, generated_at: new Date().toISOString() });
     } catch (error) {
         const status = ["Unsupported language", "Enter a question first"].includes(error.message) || error.message.includes("500 characters") ? 400 : 500;
@@ -249,6 +258,16 @@ app.post(
                             `${field} must be numeric.`
                     });
                 }
+            }
+
+            const missingWeatherFields = numericFields.filter(field =>
+                weather[field] === null || weather[field] === undefined || weather[field] === ""
+            );
+            if (missingWeatherFields.length) {
+                return res.status(422).json({
+                    success: false,
+                    error: `Forecast data is unavailable for: ${missingWeatherFields.join(", ")}. No advisory was generated.`
+                });
             }
 
 
