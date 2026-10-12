@@ -2145,9 +2145,9 @@ function setSelectedGP(
     const selectedBoundaryFeatures = (GP_BOUNDARIES.features || []).filter(item => String(item.properties?.gp_id ?? item.properties?.id ?? "") === String(id));
     if (selectedBoundaryFeatures.length) {
         const bounds = turf.bbox({ type: "FeatureCollection", features: selectedBoundaryFeatures });
-        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 70, maxZoom: 13, duration: 850 });
+        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 70, maxZoom: 11, duration: 850 });
     } else {
-        map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(map.getZoom(), 12), duration: 850 });
+        map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(map.getZoom(), 10), duration: 850 });
     }
 
 

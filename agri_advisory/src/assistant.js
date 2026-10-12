@@ -1,66 +1,103 @@
-const { buildBaseAdvisory, SUPPORTED_LANGUAGES } = require("./advisory_engine");
+const { buildBaseAdvisory, SUPPORTED_LANGUAGES } = require('./advisory_engine');
 
-const ANSWERS = {
-    en: {
-        irrigate_wet: (rain) => `Rain is forecast during the next 7 days (peak day ${rain.toFixed(1)} mm). Avoid adding irrigation just before expected rain. Check soil moisture and field drainage before deciding.`,
-        irrigate_dry: "The forecast does not show a strong rain trigger. Check soil moisture and the crop's stage and water requirement before irrigating; this service does not measure field soil moisture.",
-        spray_avoid: "Rain or stronger winds are forecast. Postpone spraying during rain and avoid spraying when wind could cause drift. Follow the product label and local agricultural guidance.",
-        spray_ok: "The available forecast does not show a strong rain or wind trigger for the selected day. Check field conditions and the product label before spraying; this is not a pesticide recommendation.",
-        field_risk: "Rain or wind may disrupt field work. Check the daily forecast and field conditions before harvesting or operating machinery.",
-        field_ok: "No strong rain or wind trigger appears in this forecast. Check field conditions and local guidance before scheduling field work.",
-        general: (title, message) => `${title}. ${message}`
-    },
-    mr: {
-        irrigate_wet: (rain) => `पुढील ७ दिवसांत पावसाचा अंदाज आहे (कमाल एका दिवसात ${rain.toFixed(1)} मिमी). अपेक्षित पावसापूर्वी अतिरिक्त सिंचन टाळा. निर्णयापूर्वी जमिनीतील ओलावा आणि शेतातील निचरा तपासा.`,
-        irrigate_dry: "अंदाजात मोठ्या पावसाचा संकेत नाही. सिंचनापूर्वी जमिनीतील ओलावा, पिकाची अवस्था आणि पाण्याची गरज तपासा; ही सेवा शेतातील ओलावा मोजत नाही.",
-        spray_avoid: "पाऊस किंवा जोरदार वाऱ्याचा अंदाज आहे. पावसात फवारणी पुढे ढकला आणि औषध वाहून जाण्याची शक्यता असल्यास फवारणी टाळा. उत्पादनाच्या लेबलवरील आणि स्थानिक कृषी मार्गदर्शनाचे पालन करा.",
-        spray_ok: "निवडलेल्या दिवसाच्या अंदाजात पाऊस किंवा वाऱ्याचा मोठा अडथळा दिसत नाही. फवारणीपूर्वी शेतातील परिस्थिती आणि उत्पादनाचे लेबल तपासा; हा कीटकनाशक वापराचा सल्ला नाही.",
-        field_risk: "पाऊस किंवा वाऱ्यामुळे शेतातील कामात अडथळा येऊ शकतो. कापणी किंवा यंत्रसामग्री वापरण्यापूर्वी दैनिक अंदाज आणि शेताची स्थिती तपासा.",
-        field_ok: "या अंदाजात पाऊस किंवा वाऱ्याचा मोठा संकेत नाही. शेतातील कामाचे नियोजन करण्यापूर्वी स्थानिक परिस्थिती तपासा.",
-        general: (title, message) => `${title}. ${message}`
-    },
-    hi: {
-        irrigate_wet: (rain) => `अगले 7 दिनों में बारिश का पूर्वानुमान है (एक दिन में अधिकतम ${rain.toFixed(1)} मिमी)। अनुमानित बारिश से ठीक पहले अतिरिक्त सिंचाई न करें। निर्णय से पहले मिट्टी की नमी और खेत की जल निकासी जाँचें।`,
-        irrigate_dry: "पूर्वानुमान में तेज बारिश का संकेत नहीं है। सिंचाई से पहले मिट्टी की नमी, फसल की अवस्था और पानी की जरूरत जाँचें; यह सेवा खेत की नमी नहीं मापती।",
-        spray_avoid: "बारिश या तेज हवा का पूर्वानुमान है। बारिश में छिड़काव टालें और हवा से दवा बहने का जोखिम हो तो छिड़काव न करें। उत्पाद के लेबल और स्थानीय कृषि सलाह का पालन करें।",
-        spray_ok: "चुने हुए दिन के पूर्वानुमान में बारिश या हवा की बड़ी बाधा नहीं दिखती। छिड़काव से पहले खेत की स्थिति और उत्पाद का लेबल जाँचें; यह कीटनाशक उपयोग की सलाह नहीं है।",
-        field_risk: "बारिश या हवा से खेत का काम प्रभावित हो सकता है। कटाई या मशीन चलाने से पहले दैनिक पूर्वानुमान और खेत की स्थिति जाँचें।",
-        field_ok: "इस पूर्वानुमान में बारिश या हवा का बड़ा संकेत नहीं है। खेत का काम तय करने से पहले स्थानीय स्थिति जाँचें।",
-        general: (title, message) => `${title}. ${message}`
-    }
+const TEXT = {
+  en: {
+    location: (gp, block, crop) => `For ${gp}${block ? `, ${block} block` : ''}${crop ? `, ${crop}` : ''}: `,
+    missing: 'The selected Panchayat forecast does not include this information, so I cannot give a reliable answer.',
+    tomorrow: (date, rain) => rain === null ? `Rainfall is not available for ${date} in the selected forecast.` : `The forecast for ${date} shows ${rain.toFixed(1)} mm of rain${rain >= 2 ? ', so rain is possible' : ', with no meaningful rain signal'}. This is a model forecast, not a guarantee.`,
+    rain: (total, peak) => total === null ? 'Rainfall values are missing from the selected Panchayat forecast.' : `The available 7-day forecast totals ${total.toFixed(1)} mm of rain${peak ? `, with the highest daily amount on ${peak.date} (${peak.rainfall.toFixed(1)} mm)` : ''}. Forecasts can change.`,
+    irrigation: (rain) => rain === null ? 'Rainfall data is unavailable. Check field soil moisture before deciding whether to irrigate.' : rain >= 20 ? `The 7-day forecast totals ${rain.toFixed(1)} mm of rain. Check soil moisture and drainage; avoid scheduling irrigation solely from this forecast.` : `The 7-day forecast totals ${rain.toFixed(1)} mm of rain. This service does not measure field soil moisture; check it and the crop stage before irrigating.`,
+    spray: (wind, rain) => wind === null && rain === null ? 'The forecast lacks rainfall and wind data needed to assess spray weather. Check the product label and local conditions.' : (rain ?? 0) >= 5 || (wind ?? 0) >= 25 ? `The forecast indicates ${rain == null ? 'unknown rainfall' : `${rain.toFixed(1)} mm total rain`} and ${wind == null ? 'unknown wind speed' : `winds up to ${wind.toFixed(0)} km/h`}. Rain or wind may reduce spray effectiveness or cause drift. Follow the product label.` : `No strong rain or wind trigger appears in the available forecast${wind == null ? '' : ` (peak wind ${wind.toFixed(0)} km/h`}${wind == null ? '' : ')'}; confirm hourly field conditions and follow the product label.`,
+    field: rain => rain == null ? 'Rain data is unavailable. Check field conditions and the local forecast before scheduling work.' : `The 7-day forecast totals ${rain.toFixed(1)} mm of rain. Check daily conditions, soil trafficability, and the crop stage before field work.`,
+    general: (title, message) => `${title}. ${message}`
+  },
+  mr: {
+    location: (gp, block, crop) => `${gp}${block ? `, ${block} तालुका` : ''}${crop ? `, ${crop} पीक` : ''} साठी: `,
+    missing: 'निवडलेल्या ग्रामपंचायतीच्या अंदाजात ही माहिती उपलब्ध नाही. त्यामुळे विश्वासार्ह उत्तर देता येत नाही.',
+    tomorrow: (date, rain) => rain === null ? `${date} साठी पावसाचा अंदाज उपलब्ध नाही.` : `${date} साठी अंदाजित पाऊस ${rain.toFixed(1)} मिमी आहे${rain >= 2 ? '; पाऊस पडण्याची शक्यता आहे' : '; लक्षणीय पावसाचा संकेत नाही'}. हा अंदाज आहे, हमी नाही.`,
+    rain: (total, peak) => total === null ? 'निवडलेल्या ग्रामपंचायतीच्या अंदाजात पावसाची माहिती उपलब्ध नाही.' : `उपलब्ध ७ दिवसांचा एकूण पावसाचा अंदाज ${total.toFixed(1)} मिमी आहे${peak ? `; सर्वाधिक पाऊस ${peak.date} रोजी (${peak.rainfall.toFixed(1)} मिमी)` : ''}. अंदाज बदलू शकतो.`,
+    irrigation: rain => rain === null ? 'पावसाची माहिती उपलब्ध नाही. सिंचनाचा निर्णय घेण्यापूर्वी शेतातील मातीचा ओलावा तपासा.' : `७ दिवसांचा एकूण पावसाचा अंदाज ${rain.toFixed(1)} मिमी आहे. मातीतील ओलावा आणि निचरा तपासा; फक्त या अंदाजावरून सिंचन ठरवू नका.`,
+    spray: (wind, rain) => wind === null && rain === null ? 'फवारणीच्या हवामानाचा अंदाज घेण्यासाठी पाऊस आणि वाऱ्याची माहिती उपलब्ध नाही. औषधाच्या लेबलवरील सूचना आणि स्थानिक परिस्थिती तपासा.' : (rain ?? 0) >= 5 || (wind ?? 0) >= 25 ? `अंदाजात ${rain == null ? 'पावसाची माहिती उपलब्ध नाही' : `${rain.toFixed(1)} मिमी पाऊस`} आणि ${wind == null ? 'वाऱ्याची माहिती उपलब्ध नाही' : `${wind.toFixed(0)} किमी/तास वारा`} आहे. पाऊस किंवा वाऱ्यामुळे फवारणीची परिणामकारकता कमी होऊ शकते. औषधाच्या लेबलवरील सूचना पाळा.` : 'उपलब्ध अंदाजात पाऊस किंवा वाऱ्याचा मोठा अडथळा दिसत नाही. फवारणीपूर्वी तासागणिक परिस्थिती तपासा आणि औषधाच्या लेबलवरील सूचना पाळा.',
+    field: rain => rain == null ? 'पावसाची माहिती उपलब्ध नाही. कामाचे नियोजन करण्यापूर्वी शेताची स्थिती आणि स्थानिक अंदाज तपासा.' : `७ दिवसांचा एकूण पावसाचा अंदाज ${rain.toFixed(1)} मिमी आहे. शेतातील परिस्थिती, मातीची स्थिती आणि पिकाची अवस्था तपासून काम ठरवा.`,
+    general: (title, message) => `${title}. ${message}`
+  },
+  hi: {
+    location: (gp, block, crop) => `${gp}${block ? `, ${block} ब्लॉक` : ''}${crop ? `, ${crop} फसल` : ''} के लिए: `,
+    missing: 'चुनी हुई ग्राम पंचायत के पूर्वानुमान में यह जानकारी उपलब्ध नहीं है, इसलिए भरोसेमंद उत्तर नहीं दिया जा सकता।',
+    tomorrow: (date, rain) => rain === null ? `${date} के लिए वर्षा का पूर्वानुमान उपलब्ध नहीं है।` : `${date} के लिए अनुमानित वर्षा ${rain.toFixed(1)} मिमी है${rain >= 2 ? '; बारिश संभव है' : '; बारिश का कोई महत्वपूर्ण संकेत नहीं है'}। यह मॉडल पूर्वानुमान है, गारंटी नहीं।`,
+    rain: (total, peak) => total === null ? 'चुनी हुई ग्राम पंचायत के पूर्वानुमान में वर्षा का डेटा उपलब्ध नहीं है।' : `उपलब्ध 7-दिन के पूर्वानुमान में कुल ${total.toFixed(1)} मिमी वर्षा है${peak ? `; सबसे अधिक वर्षा ${peak.date} को (${peak.rainfall.toFixed(1)} मिमी)` : ''}। पूर्वानुमान बदल सकता है।`,
+    irrigation: rain => rain === null ? 'वर्षा का डेटा उपलब्ध नहीं है। सिंचाई का निर्णय लेने से पहले खेत की मिट्टी की नमी जाँचें।' : `7-दिन के पूर्वानुमान में कुल ${rain.toFixed(1)} मिमी वर्षा है। मिट्टी की नमी और जल निकासी जाँचें; केवल इस पूर्वानुमान के आधार पर सिंचाई तय न करें।`,
+    spray: (wind, rain) => wind === null && rain === null ? 'छिड़काव के मौसम का आकलन करने के लिए वर्षा और हवा का डेटा उपलब्ध नहीं है। उत्पाद के लेबल और स्थानीय परिस्थितियाँ जाँचें।' : (rain ?? 0) >= 5 || (wind ?? 0) >= 25 ? `पूर्वानुमान में ${rain == null ? 'वर्षा का डेटा उपलब्ध नहीं' : `${rain.toFixed(1)} मिमी वर्षा`} और ${wind == null ? 'हवा का डेटा उपलब्ध नहीं' : `${wind.toFixed(0)} किमी/घंटा तक हवा`} है। बारिश या हवा छिड़काव का असर घटा सकती है। उत्पाद के लेबल का पालन करें।` : 'उपलब्ध पूर्वानुमान में बारिश या हवा का बड़ा संकेत नहीं है। छिड़काव से पहले प्रति घंटे की स्थिति जाँचें और उत्पाद के लेबल का पालन करें।',
+    field: rain => rain == null ? 'वर्षा का डेटा उपलब्ध नहीं है। खेत का काम तय करने से पहले खेत की स्थिति और स्थानीय पूर्वानुमान जाँचें।' : `7-दिन के पूर्वानुमान में कुल ${rain.toFixed(1)} मिमी वर्षा है। काम तय करने से पहले दैनिक मौसम, मिट्टी की स्थिति और फसल की अवस्था जाँचें।`,
+    general: (title, message) => `${title}. ${message}`
+  }
 };
 
-function answerFarmQuestion({ question, weather, language = "en", crop = null }) {
-    if (!SUPPORTED_LANGUAGES[language]) throw new Error("Unsupported language");
-    const q = String(question || "").trim().toLocaleLowerCase();
-    if (!q) throw new Error("Enter a question first");
-    if (q.length > 500) throw new Error("Question must be 500 characters or fewer");
+const numeric = value => Number.isFinite(Number(value)) && value !== null && value !== '' ? Number(value) : null;
 
-    const lexicon = ANSWERS[language];
-    const forecastRain = Number(weather.forecast_rainfall ?? weather.rainfall ?? 0);
-    const wind = Number(weather.wind_speed ?? 0);
-    const isIrrigation = /irrigat|water|पाणी|सिंचन|पानी|सिंचाई|पाणी द्य|पानी दे/.test(q);
-    const isSpray = /spray|फवार|छिड़क|छिड़काव|औषध/.test(q);
-    const isFieldWork = /harvest|field|machinery|कापणी|शेतकाम|कटाई|खेत|मशीन/.test(q);
-    let answer;
-    let topic;
+function answerFarmQuestion({ question, weather = {}, language = 'en', crop = null, location = {} }) {
+  if (!SUPPORTED_LANGUAGES[language]) throw new Error('Unsupported language');
+  const q = String(question || '').trim().toLocaleLowerCase();
+  if (!q) throw new Error('Enter a question first');
+  if (q.length > 500) throw new Error('Question must be 500 characters or fewer');
 
-    if (isIrrigation) {
-        topic = "irrigation";
-        answer = forecastRain >= 20 ? lexicon.irrigate_wet(forecastRain) : lexicon.irrigate_dry;
-    } else if (isSpray) {
-        topic = "spraying";
-        answer = forecastRain >= 5 || wind >= 25 ? lexicon.spray_avoid : lexicon.spray_ok;
-    } else if (isFieldWork) {
-        topic = "field_work";
-        answer = forecastRain >= 20 || wind >= 25 ? lexicon.field_risk : lexicon.field_ok;
-    } else {
-        topic = "weather_advisory";
-        const advisory = buildBaseAdvisory({ weather, language, audience: "farmer", crop });
-        answer = lexicon.general(advisory.approved_advisory.title, advisory.approved_advisory.message);
+  const text = TEXT[language];
+  const forecast = Array.isArray(weather.forecast) ? weather.forecast : [];
+  const rainValues = forecast.map(day => numeric(day.rainfall)).filter(value => value !== null);
+  const totalRain = rainValues.length
+    ? rainValues.reduce((sum, value) => sum + value, 0)
+    : numeric(weather.forecast_rainfall);
+  const peakDay = forecast.filter(day => numeric(day.rainfall) !== null).sort((a, b) => numeric(b.rainfall) - numeric(a.rainfall))[0] ?? null;
+  const windValues = forecast.map(day => numeric(day.wind_speed)).filter(value => value !== null);
+  const wind = windValues.length ? Math.max(...windValues) : numeric(weather.wind_speed);
+  const tomorrow = forecast.find(day => day.date > new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date()));
+  const isTomorrow = /tomorrow|next day|उद्या|कल/.test(q);
+  const isRain = /rain|raining|rainfall|weather|पाऊस|पावस|बारिश|वर्षा/.test(q);
+  const isIrrigation = /irrigat|water|सिंचन|पाणी|सिंचाई|पानी/.test(q);
+  const isSpray = /spray|फवार|छिड़क|छिड़काव/.test(q);
+  const isFieldWork = /harvest|field|machinery|कापणी|शेतकाम|खेत|कटाई|मशीन/.test(q);
+  let answer;
+  let topic;
+
+  if (isTomorrow && isRain) {
+    topic = 'tomorrow_rain';
+    answer = tomorrow ? text.tomorrow(tomorrow.date, numeric(tomorrow.rainfall)) : text.missing;
+  } else if (isRain) {
+    topic = 'rainfall_forecast';
+    answer = text.rain(totalRain, peakDay);
+  } else if (isIrrigation) {
+    topic = 'irrigation';
+    answer = text.irrigation(totalRain);
+  } else if (isSpray) {
+    topic = 'spraying';
+    answer = text.spray(wind, totalRain);
+  } else if (isFieldWork) {
+    topic = 'field_work';
+    answer = text.field(totalRain);
+  } else {
+    topic = 'weather_advisory';
+    const current = {
+      temperature: numeric(weather.temperature), humidity: numeric(weather.humidity), rainfall: numeric(weather.rainfall),
+      forecast_rainfall: totalRain, wind_speed: wind, forecast_hours: forecast.length * 24
+    };
+    const required = ['temperature', 'humidity', 'forecast_rainfall', 'wind_speed'];
+    if (required.some(key => current[key] === null)) answer = text.missing;
+    else {
+      const advisory = buildBaseAdvisory({ weather: current, language, audience: 'farmer', crop });
+      answer = text.general(advisory.approved_advisory.title, advisory.approved_advisory.message);
     }
+  }
 
-    return { answer, topic, language: SUPPORTED_LANGUAGES[language], source: "forecast_rule_engine" };
+  const gpName = location.gp_name || '';
+  const blockName = location.block || '';
+  return {
+    answer: `${text.location(gpName, blockName, crop)}${answer}`,
+    topic,
+    language: SUPPORTED_LANGUAGES[language],
+    source: 'selected_panchayat_forecast',
+    location: { gp_id: location.gp_id || null, gp_name: gpName || null, block: blockName || null, district: location.district || null },
+    evidence: { forecast_days: forecast.length, dates: forecast.map(day => day.date), crop: crop || null }
+  };
 }
 
 module.exports = { answerFarmQuestion };
