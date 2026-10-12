@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LngLatBounds, Map as MapLibreMap, NavigationControl, type FillLayerSpecification, type GeoJSONSource, type MapLayerMouseEvent } from 'maplibre-gl'
+import { LngLatBounds, Map as MapLibreMap, NavigationControl, setWorkerUrl, type FillLayerSpecification, type GeoJSONSource, type MapLayerMouseEvent } from 'maplibre-gl'
+import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { Compass, Mountain, RotateCcw } from 'lucide-react'
 import { useLanguage } from './language'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { BlockData, ForecastDay, GPWeather } from './types'
+
+// Bundle the worker as a Vite asset. MapLibre's default relative worker URL
+// can otherwise be routed to index.html by the production Python server.
+setWorkerUrl(mapLibreWorkerUrl)
 
 export type PanchayatMapMetric = 'rainfall' | 'temperature' | 'humidity' | 'wind'
 export type PanchayatMapMode = 'baseline' | 'scenario' | 'difference'

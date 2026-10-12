@@ -23,6 +23,14 @@ function forecastAdvisory(forecast: GPWeather['forecast'], crop: string, stage: 
   const peakHumidity = Math.max(0, ...forecast.map(day => day.humidity ?? 0))
   const actions: string[] = []
   const avoid: string[] = []
+  const cropPlans: Record<string, string> = {
+    Onion: stage === 'Harvest' ? 'Lift mature bulbs only after the foliage and soil surface are dry; cure under cover with ventilation.' : 'Keep onion beds evenly moist, protect drainage channels, and inspect foliage for thrips or leaf-spot symptoms.',
+    Sugarcane: stage === 'Harvest' ? 'Schedule cutting only when access rows are firm enough for transport; keep harvested cane shaded and move it promptly.' : 'Maintain field drains and inspect stalks and whorls for pest or disease symptoms after humid periods.',
+    Maize: stage === 'Flowering' ? 'Prioritise moisture checks around tasselling and silking, when short water stress can affect grain set.' : stage === 'Harvest' ? 'Harvest only after cobs and field access are dry enough to avoid kernel and soil damage.' : 'Check soil moisture near the root zone and keep drainage clear around young maize plants.',
+    Pomegranate: stage === 'Flowering' ? 'Protect flowering from prolonged wetness; inspect the canopy for fungal symptoms and maintain airflow through appropriate orchard sanitation.' : 'Monitor fruit and canopy after rain, remove diseased material safely, and avoid wet-canopy sprays.',
+    Soybean: stage === 'Flowering' ? 'Check flowering soybean for waterlogging and leaf disease after humid or rainy periods; keep field outlets clear.' : stage === 'Harvest' ? 'Wait for dry pods and firm field access before harvest to reduce seed staining and compaction.' : 'Inspect soybean leaves after humid weather and keep water from standing in low-lying patches.',
+  }
+  actions.push(cropPlans[crop] ?? 'Match field work to crop stage, soil condition, and the selected Panchayat forecast.')
   if (peakRain >= 10 || rain >= 25) { actions.push(`Inspect drainage and postpone irrigation where field soil is already wet.`); avoid.push('Avoid field operations on saturated soil.') }
   else { actions.push(`Check soil moisture before irrigation; the selected Panchayat forecast totals ${rain.toFixed(1)} mm of rain.`) }
   if (peakWind >= 25 || peakRain >= 5) avoid.push('Avoid spraying during forecast rain or stronger winds; use a calm, dry window and follow the product label.')
@@ -57,11 +65,14 @@ export default function AgriAdvisory({ gp, location, language, onLanguageChange,
     if (!forecast.length) { setBusy(false); setResult(null); setError('No calculated forecast is available for this location.'); return () => { active = false } }
     setBusy(true); setError('')
     const weather = { temperature: current.temperature, humidity: current.humidity, rainfall: current.rainfall, forecast_rainfall: rainfall, wind_speed: current.wind == null ? null : current.wind * 3.6, forecast_hours: forecast.length * 24 }
-    fetch('/agri-api/api/advisory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      gp_id: gp.id, gp_name: gp.name, location: { ...location, gp_id: gp.id, gp_name: gp.name }, crop: `${activeCrop} (${stage})`, language: activeLanguage, audience: 'farmer',
-      weather: { ...weather, forecast: forecast.map(day => ({ date: day.date, rainfall: day.rainfall, temperature: day.temperature, humidity: day.humidity, wind_speed: day.wind == null ? null : day.wind * 3.6 })) }
-    }) }).then(async response => { const raw = await response.text(); let payload: Result & { success?: boolean; error?: string; message?: string }; try { payload = JSON.parse(raw) } catch { throw new Error(`Advisory service returned an invalid response (${response.status}).`) } if (!response.ok || !payload.success) throw new Error(payload.message || payload.error || words.unavailable); if (active) setResult(payload) })
-      .catch(() => { if (active) { setResult(forecastAdvisory(forecast, activeCrop, stage)); setError('') } }).finally(() => active && setBusy(false))
+    // Advisory guidance is intentionally calculated in the browser from the
+    // selected Panchayat forecast. This keeps it responsive to every selection
+    // and avoids a dependency on an optional separate advisory service.
+    if (active) {
+      setResult(forecastAdvisory(forecast, activeCrop, stage))
+      setError('')
+      setBusy(false)
+    }
     return () => { active = false }
   }, [gp, location?.state, location?.district, location?.block, activeCrop, stage, activeLanguage, todayKey, usingLatestRun])
   const advisory = result?.advisory
