@@ -8,6 +8,7 @@ import { getBlock } from './services'
 import type { BlockData, ForecastDay, GPWeather, LocationOption } from './types'
 import { direction, distanceKm, featureId, neighboringPanchayats, sharedBoundaryLength } from './spatial'
 import { useLanguage } from './language'
+import { defaultLocation } from './locationDefaults'
 import './comparison-dashboard.css'
 
 const COLORS = ['#11b8c7', '#f04758', '#ffd23f', '#6aca55', '#ab78f2']
@@ -39,7 +40,7 @@ export default function ComparisonDashboard({ locations }: { locations: Location
   const [params, setParams] = useSearchParams()
   const initial = locations.find(x => x.state === params.get('state') && x.district === params.get('district') && x.block === params.get('block'))
     ?? locations.find(x => x.block === params.get('block'))
-    ?? locations.find(x => x.state === 'Maharashtra') ?? locations[0]
+    ?? defaultLocation(locations)
   const [location, setLocation] = useState(initial)
   const [data, setData] = useState<BlockData | null>(null)
   const [selectedId, setSelectedId] = useState(params.get('gp') ?? '')

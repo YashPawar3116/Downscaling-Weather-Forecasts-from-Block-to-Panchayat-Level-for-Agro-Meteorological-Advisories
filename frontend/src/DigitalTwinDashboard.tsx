@@ -10,6 +10,7 @@ import { direction, distanceKm, neighboringPanchayats } from './spatial'
 import { getBlock } from './services'
 import type { BlockData, ForecastDay, GPWeather, LandCoverClass, LocationOption } from './types'
 import { useLanguage } from './language'
+import { defaultLocation as preferredLocation } from './locationDefaults'
 import './digital-twin.css'
 
 const PanchayatView = lazy(() => import('./PanchayatView'))
@@ -42,9 +43,7 @@ const CATEGORY_LABELS: Record<LandCoverClass, string> = {
 const LAND_COLORS = ['#169a73', '#f5bb31', '#ed8750', '#35a6c5', '#7987a5', '#66b8a6', '#d2a17a', '#9b8c76', '#c5d4e2']
 
 function defaultLocation(locations: LocationOption[]) {
-  return locations.find(item => item.state === 'Maharashtra' && item.district === 'Pune' && normalized(item.block) === 'baramati' && item.available !== false)
-    ?? locations.find(item => item.available !== false)
-    ?? locations[0]
+  return preferredLocation(locations)
 }
 
 function forecastValue(day: ForecastDay | undefined, variable: Variable) {

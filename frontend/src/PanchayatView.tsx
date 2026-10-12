@@ -67,7 +67,7 @@ function focusSelected(map: MapLibreMap, data: BlockData, selected: GPWeather) {
     const bounds = new LngLatBounds()
     extendCoordinates(bounds, selectedFeature.geometry.coordinates)
     if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, { padding: 55, maxZoom: 13, pitch: 68, duration: 500 })
+      map.fitBounds(bounds, { padding: 55, maxZoom: 11, pitch: 68, duration: 500 })
       return
     }
   }
@@ -121,7 +121,7 @@ export default function PanchayatView({ baseline, scenario, selectedId, dayIndex
       map = new MapLibreMap({
         container: container.current,
         center,
-        zoom: 9,
+        zoom: 10,
         pitch: 68,
         bearing: 0,
         maxPitch: 75,
@@ -190,9 +190,6 @@ export default function PanchayatView({ baseline, scenario, selectedId, dayIndex
         map.addSource('terrain', {
           type: 'raster-dem',
           url: 'https://tiles.mapterhorn.com/tilejson.json',
-          tileSize: 512,
-          maxzoom: 15,
-          encoding: 'terrarium',
         })
         map.setTerrain({ source: 'terrain', exaggeration: 1.5 })
         map.addLayer({ id: 'terrain-hillshade', type: 'hillshade', source: 'terrain', paint: { 'hillshade-shadow-color': '#233a3a', 'hillshade-highlight-color': '#f8fff2', 'hillshade-exaggeration': 0.45 } }, 'gp-weather-fill')
@@ -218,7 +215,7 @@ export default function PanchayatView({ baseline, scenario, selectedId, dayIndex
     map.on('error', event => {
       const sourceId = 'sourceId' in event ? String(event.sourceId ?? '') : ''
       const message = event.error?.message ?? ''
-      if (sourceId === 'terrain' || /mapterhorn|terrarium/i.test(message)) {
+      if (sourceId === 'terrain' || /mapterhorn/i.test(message)) {
         setDemStatus('unavailable')
         if (terrainLoadTimeout !== undefined) window.clearTimeout(terrainLoadTimeout)
       }
