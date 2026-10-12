@@ -447,6 +447,12 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 function translateDynamic(language: AppLanguage, text: string) {
   if (language === 'en') return text
+  const home: Record<AppLanguage, Record<string, string>> = {
+    en: {},
+    mr: { 'Home': 'मुख्यपृष्ठ', 'Map': 'नकाशा', 'Forecast': 'अंदाज', 'Advisory': 'सल्ला', 'Insights': 'निष्कर्ष', 'About': 'माहिती', 'HYPERLOCAL WEATHER INTELLIGENCE': 'स्थानिक हवामान माहिती', 'Good decisions start': 'चांगले निर्णय सुरू होतात', 'with your local forecast.': 'तुमच्या स्थानिक अंदाजापासून.', 'Weather information shaped by the place you farm.': 'तुम्ही ज्या ठिकाणी शेती करता त्या ठिकाणानुसार हवामान माहिती.', 'Compare Panchayats': 'ग्रामपंचायतींची तुलना करा', 'Gram Panchayats covered': 'समाविष्ट ग्रामपंचायती', 'Forecast horizon': 'अंदाज कालावधी', 'Model output run': 'मॉडेल परिणाम रन', 'Weather variables': 'हवामान घटक', 'YOUR LOCATION': 'तुमचे स्थान', 'Location': 'स्थान', 'Weather layer': 'हवामान स्तर', 'Loading forecast and GP boundaries...': 'अंदाज आणि ग्रामपंचायत सीमा लोड होत आहेत...', 'Weather data unavailable': 'हवामान माहिती उपलब्ध नाही', 'Try again': 'पुन्हा प्रयत्न करा' },
+    hi: { 'Home': 'होम', 'Map': 'नक्शा', 'Forecast': 'पूर्वानुमान', 'Advisory': 'सलाह', 'Insights': 'जानकारी', 'About': 'परिचय', 'HYPERLOCAL WEATHER INTELLIGENCE': 'स्थानीय मौसम जानकारी', 'Good decisions start': 'अच्छे निर्णय शुरू होते हैं', 'with your local forecast.': 'आपके स्थानीय पूर्वानुमान से।', 'Weather information shaped by the place you farm.': 'आप जहाँ खेती करते हैं, उस स्थान के अनुसार मौसम जानकारी।', 'Compare Panchayats': 'ग्राम पंचायतों की तुलना करें', 'Gram Panchayats covered': 'शामिल ग्राम पंचायतें', 'Forecast horizon': 'पूर्वानुमान अवधि', 'Model output run': 'मॉडल आउटपुट रन', 'Weather variables': 'मौसम घटक', 'YOUR LOCATION': 'आपका स्थान', 'Location': 'स्थान', 'Weather layer': 'मौसम परत', 'Loading forecast and GP boundaries...': 'पूर्वानुमान और ग्राम पंचायत सीमाएँ लोड हो रही हैं...', 'Weather data unavailable': 'मौसम जानकारी उपलब्ध नहीं है', 'Try again': 'फिर से प्रयास करें' },
+  }
+  if (home[language][text]) return home[language][text]
   const rain = text.match(/^Scenario rainfall (reaches|is) ([\d.]+) mm, (at or above|below) the selected ([\d.]+) mm threshold\.$/)
   if (rain) {
     const [, , amount, comparison, threshold] = rain

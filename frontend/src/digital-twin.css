@@ -334,7 +334,6 @@
 .twin-advisory-summary span { font-size: 10px; }
 .twin-resource-row > .twin-panel > p,
 .twin-footer, .twin-stale-banner, .twin-scenario-banner { color: #465f6d; font-size: 11px; }
-.twin-impact-chain,
 .twin-intervention-comparison,
 .twin-why-change { display: none; }
 .twin-impact-panel { margin-top: 9px; }
