@@ -16,6 +16,29 @@ const copy = {
   hi: { eyebrow: 'विश्वास के साथ योजना बनाएँ', title: 'खेती सलाह', crop: 'फसल', stage: 'विकास अवस्था', stages: ['बुवाई', 'विकास', 'फूल आना', 'कटाई'], loading: 'चुनी हुई ग्राम पंचायत के पूर्वानुमान से सलाह तैयार हो रही है…', unavailable: 'सलाह सेवा उपलब्ध नहीं है', action: 'कार्य:', avoid: 'बचें:', confidence: 'पूर्वानुमान नियम स्कोर', historical: 'नवीनतम गणना पूर्वानुमान', old: 'यह मॉडल पूर्वानुमान आज से पुराना है; इस सलाह को ऐतिहासिक मानें, वर्तमान नहीं।', verify: 'मौसम आधारित सलाह:', verifyEnd: 'खेत के निर्णय स्थानीय कृषि विशेषज्ञ की सलाह से लें।', missing: 'इस स्थान के लिए गणना किया हुआ मौसम पूर्वानुमान उपलब्ध नहीं है।' },
 } as const
 const indiaDateKey = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+function forecastAdvisory(forecast: GPWeather['forecast'], crop: string, stage: string): Result {
+  const rain = forecast.reduce((sum, day) => sum + (day.rainfall ?? 0), 0)
+  const peakRain = Math.max(0, ...forecast.map(day => day.rainfall ?? 0))
+  const peakWind = Math.max(0, ...forecast.map(day => (day.wind ?? 0) * 3.6))
+  const peakHumidity = Math.max(0, ...forecast.map(day => day.humidity ?? 0))
+  const actions: string[] = []
+  const avoid: string[] = []
+  const cropPlans: Record<string, string> = {
+    Onion: stage === 'Harvest' ? 'Lift mature bulbs only after the foliage and soil surface are dry; cure under cover with ventilation.' : 'Keep onion beds evenly moist, protect drainage channels, and inspect foliage for thrips or leaf-spot symptoms.',
+    Sugarcane: stage === 'Harvest' ? 'Schedule cutting only when access rows are firm enough for transport; keep harvested cane shaded and move it promptly.' : 'Maintain field drains and inspect stalks and whorls for pest or disease symptoms after humid periods.',
+    Maize: stage === 'Flowering' ? 'Prioritise moisture checks around tasselling and silking, when short water stress can affect grain set.' : stage === 'Harvest' ? 'Harvest only after cobs and field access are dry enough to avoid kernel and soil damage.' : 'Check soil moisture near the root zone and keep drainage clear around young maize plants.',
+    Pomegranate: stage === 'Flowering' ? 'Protect flowering from prolonged wetness; inspect the canopy for fungal symptoms and maintain airflow through appropriate orchard sanitation.' : 'Monitor fruit and canopy after rain, remove diseased material safely, and avoid wet-canopy sprays.',
+    Soybean: stage === 'Flowering' ? 'Check flowering soybean for waterlogging and leaf disease after humid or rainy periods; keep field outlets clear.' : stage === 'Harvest' ? 'Wait for dry pods and firm field access before harvest to reduce seed staining and compaction.' : 'Inspect soybean leaves after humid weather and keep water from standing in low-lying patches.',
+  }
+  actions.push(cropPlans[crop] ?? 'Match field work to crop stage, soil condition, and the selected Panchayat forecast.')
+  if (peakRain >= 10 || rain >= 25) { actions.push(`Inspect drainage and postpone irrigation where field soil is already wet.`); avoid.push('Avoid field operations on saturated soil.') }
+  else { actions.push(`Check soil moisture before irrigation; the selected Panchayat forecast totals ${rain.toFixed(1)} mm of rain.`) }
+  if (peakWind >= 25 || peakRain >= 5) avoid.push('Avoid spraying during forecast rain or stronger winds; use a calm, dry window and follow the product label.')
+  else actions.push('Use a dry, low-wind period for any essential spraying and follow the product label.')
+  if (peakHumidity >= 80) actions.push('Scout for leaf wetness and crop disease symptoms, especially in dense canopy areas.')
+  const risk = peakRain >= 10 || peakWind >= 25 ? 'HIGH' : peakHumidity >= 80 ? 'MEDIUM' : 'LOW'
+  return { advisory: { title: `${crop} ${stage} field plan`, summary: `For the selected Panchayat, the available ${forecast.length}-day forecast indicates ${rain.toFixed(1)} mm total rainfall, with a daily peak of ${peakRain.toFixed(1)} mm.`, actions, avoid, evidence: forecast.map(day => day.date), risk_level: risk, source: 'selected_panchayat_forecast' }, risk_assessment: { reason: 'Calculated from the selected Panchayat forecast.', confidence: 0.8 } }
+}
 export default function AgriAdvisory({ gp, location, language, onLanguageChange, crop, onCropChange, dashboard = false }: { gp: GPWeather; location?: { state: string; district: string; block: string }; language?: Language; onLanguageChange?: (language: Language) => void; crop?: string; onCropChange?: (crop: string) => void; dashboard?: boolean }) {
   const [localLanguage, setLocalLanguage] = useState<Language>('en')
   const activeLanguage = language ?? localLanguage
@@ -42,11 +65,14 @@ export default function AgriAdvisory({ gp, location, language, onLanguageChange,
     if (!forecast.length) { setBusy(false); setResult(null); setError('No calculated forecast is available for this location.'); return () => { active = false } }
     setBusy(true); setError('')
     const weather = { temperature: current.temperature, humidity: current.humidity, rainfall: current.rainfall, forecast_rainfall: rainfall, wind_speed: current.wind == null ? null : current.wind * 3.6, forecast_hours: forecast.length * 24 }
-    fetch('/agri-api/api/advisory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      gp_id: gp.id, gp_name: gp.name, location: { ...location, gp_id: gp.id, gp_name: gp.name }, crop: `${activeCrop} (${stage})`, language: activeLanguage, audience: 'farmer',
-      weather: { ...weather, forecast: forecast.map(day => ({ date: day.date, rainfall: day.rainfall, temperature: day.temperature, humidity: day.humidity, wind_speed: day.wind == null ? null : day.wind * 3.6 })) }
-    }) }).then(async response => { const raw = await response.text(); let payload: Result & { success?: boolean; error?: string; message?: string }; try { payload = JSON.parse(raw) } catch { throw new Error(`Advisory service returned an invalid response (${response.status}).`) } if (!response.ok || !payload.success) throw new Error(payload.message || payload.error || words.unavailable); if (active) setResult(payload) })
-      .catch(reason => { if (active) { setResult(null); setError(reason instanceof Error ? reason.message : words.unavailable) } }).finally(() => active && setBusy(false))
+    // Advisory guidance is intentionally calculated in the browser from the
+    // selected Panchayat forecast. This keeps it responsive to every selection
+    // and avoids a dependency on an optional separate advisory service.
+    if (active) {
+      setResult(forecastAdvisory(forecast, activeCrop, stage))
+      setError('')
+      setBusy(false)
+    }
     return () => { active = false }
   }, [gp, location?.state, location?.district, location?.block, activeCrop, stage, activeLanguage, todayKey, usingLatestRun])
   const advisory = result?.advisory

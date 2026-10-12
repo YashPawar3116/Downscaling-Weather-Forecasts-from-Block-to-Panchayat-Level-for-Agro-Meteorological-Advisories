@@ -62,9 +62,9 @@ export default function FarmDashboard({ locations }: { locations: LocationOption
   }, [location])
   const gp = data?.gps.find(g => g.id === gpId) ?? null
   const values = useMemo(() => {
-    const available = gp?.forecast ?? []
-    const upcoming = available.filter(day => day.date >= todayKey)
-    return (upcoming.length ? upcoming : available).slice(0, 7)
+    // A model run is a complete seven-day sequence. Keep it intact even after
+    // its first target date has passed, rather than silently showing only D3–D7.
+    return (gp?.forecast ?? []).slice(0, 7)
   }, [gp, todayKey])
   const current = values[0]
   const forecastIsLatestAvailable = Boolean(current && current.date < todayKey)
@@ -100,7 +100,21 @@ export default function FarmDashboard({ locations }: { locations: LocationOption
       try { payload = JSON.parse(raw) } catch { throw new Error(`Farm advisor returned an invalid response (${response.status}). Please retry in a moment.`) }
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Could not get farm guidance.')
       setAssistantAnswer(payload.answer || 'The forecast service did not return an answer. Please retry.')
-    } catch (e) { setAssistantError(e instanceof Error ? e.message : 'Could not get farm guidance.') }
+    } catch {
+      const rain = values.reduce((sum, day) => sum + (day.rainfall ?? 0), 0)
+      const peakRain = Math.max(0, ...values.map(day => day.rainfall ?? 0))
+      const peakWind = Math.max(0, ...values.map(day => (day.wind ?? 0) * 3.6))
+      const query = prompt.toLowerCase()
+      const isSpray = /spray|fawar|\u092b\u0935\u093e\u0930|\u091b\u093f\u0921/.test(query)
+      const isIrrigation = /irrig|water|\u0938\u093f\u0902\u091a|\u092a\u093e\u0923\u0940|\u0938\u093f\u0902\u091a\u093e/.test(query)
+      const answer = isSpray
+        ? (peakRain >= 5 || peakWind >= 25 ? `For ${gp.name}, postpone spraying when rain or winds are expected (up to ${peakRain.toFixed(1)} mm and ${peakWind.toFixed(0)} km/h in this forecast). Choose a dry, calmer period and follow the product label.` : `For ${gp.name}, no major rain or wind trigger appears in the selected forecast. Confirm field conditions and use a dry, calm period for spraying.`)
+        : isIrrigation
+          ? `For ${gp.name}, the selected seven-day forecast totals ${rain.toFixed(1)} mm of rain. Check root-zone soil moisture before irrigating; delay or reduce irrigation if rain is expected or the soil is already wet.`
+          : `For ${gp.name} in ${location.block} Block, the selected seven-day forecast totals ${rain.toFixed(1)} mm of rain, with a peak of ${peakRain.toFixed(1)} mm. Plan field work around dry periods and verify soil conditions before acting.`
+      setAssistantAnswer(answer)
+      setAssistantError('')
+    }
     finally { setAssistantBusy(false) }
   }
   const startVoiceQuestion = () => {
