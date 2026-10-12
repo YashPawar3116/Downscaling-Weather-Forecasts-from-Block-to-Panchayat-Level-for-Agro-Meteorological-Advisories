@@ -127,7 +127,7 @@ def advisory_is_healthy(port):
     try:
         with urlopen(f'http://127.0.0.1:{port}/api/health',timeout=0.6) as response:
             payload=json.loads(response.read().decode('utf-8'))
-            return response.status==200 and payload.get('success') is True
+            return response.status==200 and payload.get('success') is True and payload.get('service')=='AgriWeather Advisory API'
     except Exception:return False
 def port_is_available(port):
     try:

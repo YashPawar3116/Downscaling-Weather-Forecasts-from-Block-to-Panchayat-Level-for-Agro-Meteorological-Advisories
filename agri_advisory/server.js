@@ -53,6 +53,15 @@ app.use(
     })
 );
 
+// Accept both direct API paths and the frontend's /agri-api proxy prefix.
+// This keeps Vercel, the Python reverse proxy, and local Vite requests aligned.
+app.use((req, res, next) => {
+    if (req.url === "/agri-api" || req.url.startsWith("/agri-api/")) {
+        req.url = req.url.slice("/agri-api".length) || "/";
+    }
+    next();
+});
+
 
 /* ==========================================
    RATE LIMITING
