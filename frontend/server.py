@@ -28,6 +28,10 @@ MAHARASHTRA_DISTRICTS = (
 OFFICIAL_DISTRICT_ALIASES = {'Ahilyanagar': 'Ahmednagar', 'Mumbai City': 'Mumbai'}
 OFFICIAL_TO_DISPLAY_DISTRICT = {value: key for key, value in OFFICIAL_DISTRICT_ALIASES.items()}
 _maharashtra_registry = None
+_locations_cache = None
+_locations_cache_expires = 0.0
+_block_data_cache = {}
+_data_cache_lock = threading.Lock()
 _processing_jobs = {}
 _processing_jobs_by_location = {}
 _processing_jobs_lock = threading.Lock()
@@ -172,7 +176,7 @@ def maharashtra_registry():
             records.append({'state':'Maharashtra','district':district,'block':block,'blockLgdCode':str(props.get('block_lgd') or props.get('blkcode11') or '')})
     _maharashtra_registry=sorted(records,key=lambda x:(x['district'],x['block'].casefold()))
     return _maharashtra_registry
-def locations():
+def _build_locations():
     """Merge official statewide choices with existing calculated model outputs."""
     calculated=discover()
     def location_key(item):
@@ -191,6 +195,18 @@ def locations():
         computed=result.get(key) or by_key.get(legacy_key)
         result[key]={**official,**(computed or {}),'blockLgdCode':official['blockLgdCode'],'gpCount':computed['gpCount'] if computed else 0,'forecastDates':computed['forecastDates'] if computed else [],'available':computed is not None}
     return sorted(result.values(),key=lambda x:(x['state'],x['district'],x['block'].casefold()))
+def locations():
+    """Cache the filesystem-backed registry scan for quick dashboard navigation."""
+    global _locations_cache, _locations_cache_expires
+    now=time.monotonic()
+    with _data_cache_lock:
+        if _locations_cache is not None and now < _locations_cache_expires:
+            return _locations_cache
+    result=_build_locations()
+    with _data_cache_lock:
+        _locations_cache=result
+        _locations_cache_expires=time.monotonic()+60
+    return result
 def processing_status_for_line(line,active_stage=None,active_chunk=None):
     lower=line.casefold()
     batch=re.search(r'\bgp batch\s+(\d+)\s*/\s*(\d+)',line,re.IGNORECASE)
@@ -344,7 +360,7 @@ def simplify_geometry(fc):
         return {'type':'FeatureCollection','features':features}
     except Exception:
         return fc
-def block_data(state,district,block):
+def _build_block_data(state,district,block):
     folder=block_path(state,district,block)
     storage_district=folder.parent.name
     forecast_file=folder/'stage2_current_gp_forecast.csv'
@@ -444,6 +460,19 @@ def block_data(state,district,block):
                 updated=next((r.get('forecast_retrieved_at') for r in source_rows if r.get('forecast_retrieved_at')) ,None)
             except (OSError,KeyError):pass
     return {'location':location,'gps':sorted(grouped.values(),key=lambda x:x['name'].casefold()),'gpGeometry':gp_fc,'blockGeometry':block_fc,'updatedAt':updated}
+def block_data(state,district,block):
+    """Reuse parsed forecast and geometry payloads across dashboard/API requests."""
+    key=location_key(state,district,block)
+    now=time.monotonic()
+    with _data_cache_lock:
+        cached=_block_data_cache.get(key)
+        if cached and now < cached[0]:
+            return cached[1]
+    result=_build_block_data(state,district,block)
+    if result is not None:
+        with _data_cache_lock:
+            _block_data_cache[key]=(time.monotonic()+300,result)
+    return result
 
 class Handler(BaseHTTPRequestHandler):
     def send_json(self,value,status=200):
@@ -493,7 +522,7 @@ class Handler(BaseHTTPRequestHandler):
             job_id=start_block_processing(location)
             return self.send_json({'jobId':job_id,'status':'queued','location':location},202)
         # In production, serve the Vite build from this same process.
-        rel='index.html' if u.path=='/' or u.path.startswith(('/dashboard','/map','/forecast','/advisory','/insights','/about','/gp/','/block/')) else u.path.lstrip('/')
+        rel='index.html' if u.path=='/' or u.path.startswith(('/dashboard','/twin','/comparison','/map','/forecast','/advisory','/insights','/about','/gp/','/block/')) else u.path.lstrip('/')
         path=(DIST/rel).resolve()
         if not str(path).startswith(str(DIST.resolve())) or not path.is_file():return self.send_error(404)
         content=path.read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(path.name)[0] or 'application/octet-stream'); self.send_header('Content-Length',str(len(content))); self.end_headers(); self.wfile.write(content)
