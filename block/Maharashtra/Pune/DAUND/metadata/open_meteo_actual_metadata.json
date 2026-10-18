@@ -9,12 +9,12 @@
   "longitude": 74.4545644005344,
   "collection_timezone": "Asia/Kolkata",
   "history_years": 5,
-  "today": "2026-10-11",
-  "collection_mode": "initial_5_year_collection",
-  "collection_start": "2021-10-11",
-  "collection_end": "2026-10-11",
-  "rows_added_this_run": 1827,
-  "total_rows": 1827,
+  "today": "2026-10-18",
+  "collection_mode": "incremental_update",
+  "collection_start": "2026-10-12",
+  "collection_end": "2026-10-18",
+  "rows_added_this_run": 7,
+  "total_rows": 1834,
   "daily_variables": [
     "temperature_2m_mean",
     "temperature_2m_max",
@@ -33,84 +33,84 @@
     "et0_fao_evapotranspiration"
   ],
   "quality_audit": {
-    "rows": 1827,
+    "rows": 1834,
     "date_start": "2021-10-11",
-    "date_end": "2026-10-11",
+    "date_end": "2026-10-18",
     "missing_dates": 0,
     "duplicate_dates": 0,
     "variable_completeness": {
       "temperature_2m_mean": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "temperature_2m_max": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "temperature_2m_min": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "relative_humidity_2m_mean": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "relative_humidity_2m_max": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "relative_humidity_2m_min": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "precipitation_sum": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "rain_sum": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "wind_speed_10m_mean": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "wind_speed_10m_max": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "wind_gusts_10m_max": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "shortwave_radiation_sum": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "cloud_cover_mean": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "surface_pressure_mean": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       },
       "et0_fao_evapotranspiration": {
-        "rows": 1827,
+        "rows": 1834,
         "missing": 0,
         "missing_percent": 0.0
       }

@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Nashik",
+  "block_requested": "BAGLAN",
+  "resolved_block_name": "Baglan",
+  "block_lgd_code": "4479",
+  "district_name": "Nashik",
+  "district_code": "516",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 134,
+  "area_km2": 1445.745658486336,
+  "centroid_lat": 20.7082542828805,
+  "centroid_lon": 74.1579704964897,
+  "bounds": {
+    "min_lon": 73.83041210063293,
+    "min_lat": 20.51550971383711,
+    "max_lon": 74.40381351708871,
+    "max_lat": 20.864771704187664
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}

@@ -1,0 +1,40 @@
+{
+  "created_utc": "2026-10-18T09:17:16.283719+00:00",
+  "location": [
+    "Maharashtra",
+    "Nashik",
+    "NIPHAD"
+  ],
+  "reports": [
+    {
+      "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\block\\Maharashtra\\Nashik\\NIPHAD\\processed\\merge\\block_observations_daily.csv",
+      "rows": 1845,
+      "exact_duplicate_rows_removed": 0,
+      "infinite_to_nan": 0,
+      "imputation": false,
+      "interpolation": false,
+      "outlier_removal": false,
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_observations_daily.csv"
+    },
+    {
+      "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\block\\Maharashtra\\Nashik\\NIPHAD\\processed\\merge\\block_forecast_training_base.csv",
+      "rows": 1004,
+      "exact_duplicate_rows_removed": 0,
+      "infinite_to_nan": 0,
+      "imputation": false,
+      "interpolation": false,
+      "outlier_removal": false,
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_forecast_training_base.csv"
+    },
+    {
+      "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\block\\Maharashtra\\Nashik\\NIPHAD\\processed\\merge\\block_current_forecast.csv",
+      "rows": 7,
+      "exact_duplicate_rows_removed": 0,
+      "infinite_to_nan": 0,
+      "imputation": false,
+      "interpolation": false,
+      "outlier_removal": false,
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_current_forecast.csv"
+    }
+  ]
+}
