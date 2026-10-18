@@ -18,8 +18,11 @@ const dateLabel = (date: string) => new Intl.DateTimeFormat('en-IN', { day: 'num
 function FitBounds({ data, rows }: { data: BlockData; rows: GPWeather[] }) {
   const map = useMap()
   useEffect(() => {
-    // Default to the selected block, not the small set of neighbouring GP
-    // centroids, so the map opens at a useful district-scale extent.
+    const selected = rows[0]
+    if (selected?.lat != null && selected.lon != null) {
+      map.flyTo([selected.lat, selected.lon], Math.max(map.getZoom(), 12), { duration: .65 })
+      return
+    }
     const geometry = data.blockGeometry?.features.length ? data.blockGeometry : data.gpGeometry
     const bounds = L.geoJSON(geometry as never).getBounds()
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [42, 42], maxZoom: 11 })
