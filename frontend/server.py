@@ -519,8 +519,11 @@ class Handler(BaseHTTPRequestHandler):
                     data=None
             except (OSError,ValueError,KeyError) as exc:return self.send_json({'error':str(exc)},500)
             if data is not None:return self.send_json(data,200)
-            job_id=start_block_processing(location)
-            return self.send_json({'jobId':job_id,'status':'queued','location':location},202)
+            command=f"python run_pipeline.py --state {location['state']} --district {location['district']} --block {location['block']} --to-stage stage2 --force"
+            return self.send_json({
+                'status':'coming_soon',
+                'error':f"Data coming soon for {location['block']} Block, {location['district']}. This block has not been processed yet. Run this command from the project folder: {command}"
+            },404)
         # In production, serve the Vite build from this same process.
         rel='index.html' if u.path=='/' or u.path.startswith(('/dashboard','/twin','/comparison','/map','/forecast','/advisory','/insights','/about','/gp/','/block/')) else u.path.lstrip('/')
         path=(DIST/rel).resolve()
