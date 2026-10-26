@@ -519,13 +519,16 @@ class Handler(BaseHTTPRequestHandler):
                     data=None
             except (OSError,ValueError,KeyError) as exc:return self.send_json({'error':str(exc)},500)
             if data is not None:return self.send_json(data,200)
-            job_id=start_block_processing(location)
-            return self.send_json({'jobId':job_id,'status':'queued','location':location},202)
+            command=f"python run_pipeline.py --state {location['state']} --district {location['district']} --block {location['block']} --to-stage stage2 --force"
+            return self.send_json({
+                'status':'coming_soon',
+                'error':f"Data coming soon for {location['block']} Block, {location['district']}. This block has not been processed yet. Run this command from the project folder: {command}"
+            },404)
         # In production, serve the Vite build from this same process.
         rel='index.html' if u.path=='/' or u.path.startswith(('/dashboard','/twin','/comparison','/map','/forecast','/advisory','/insights','/about','/gp/','/block/')) else u.path.lstrip('/')
         path=(DIST/rel).resolve()
         if not str(path).startswith(str(DIST.resolve())) or not path.is_file():return self.send_error(404)
-        content=path.read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(path.name)[0] or 'application/octet-stream'); self.send_header('Content-Length',str(len(content))); self.end_headers(); self.wfile.write(content)
+        content=path.read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(path.name)[0] or 'application/octet-stream'); self.send_header('Cache-Control','no-cache' if path.suffix=='.html' else 'public, max-age=31536000, immutable'); self.send_header('Content-Length',str(len(content))); self.end_headers(); self.wfile.write(content)
     def do_POST(self):
         u=urlparse(self.path)
         if u.path.startswith('/agri-api/'):

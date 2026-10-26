@@ -1,0 +1,18 @@
+{
+  "created_utc": "2026-10-18T09:17:20.490254+00:00",
+  "location": [
+    "Maharashtra",
+    "Nashik",
+    "NIPHAD"
+  ],
+  "report": {
+    "source": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\gp\\Maharashtra\\Nashik\\NIPHAD\\processed\\gp_merged_features.csv",
+    "rows": 117,
+    "exact_duplicate_rows_removed": 0,
+    "infinite_to_nan": 0,
+    "imputation": false,
+    "interpolation": false,
+    "outlier_removal": false,
+    "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\gp\\gp_merged_features.csv"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "project": "SIH26 Weather Downscaling",
+  "state": "Maharashtra",
+  "district": "Nashik",
+  "block_requested": "NIPHAD",
+  "resolved_block_name": "Niphad",
+  "block_lgd_code": "4488",
+  "district_name": "Nashik",
+  "district_code": "516",
+  "state_name": "MAHARASHTRA",
+  "number_of_gp_polygons": 121,
+  "area_km2": 976.6661418207641,
+  "centroid_lat": 20.077523882905002,
+  "centroid_lon": 74.11509368710699,
+  "bounds": {
+    "min_lon": 73.91880735765285,
+    "min_lat": 19.92856279908472,
+    "max_lon": 74.33049151712413,
+    "max_lat": 20.241891716375523
+  },
+  "crs": "EPSG:4326",
+  "source": "Gram Manchitra",
+  "source_url": "https://grammanchitragis.nic.in/grammanchitra/rest/services/panchayat/panchayat_admin/MapServer/3/query",
+  "construction": "Block geometry created by dissolving GP polygons belonging to the resolved Block LGD code.",
+  "synthetic_values_used": false
+}

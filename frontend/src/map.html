@@ -2056,9 +2056,9 @@ function handleDashboardMessage(event) {
             map.getSource("gp-boundaries").setData(GP_BOUNDARIES);
             map.getSource("block-boundaries")?.setData(BLOCK_BOUNDARIES);
             updateWeatherVisualization();
+            // A user-selected GP takes priority over the block overview.
             if (message.selectedId) setSelectedGP(message.selectedId);
-            // Keep the dashboard's default at the selected block extent.
-            fitToGramPanchayats();
+            else fitToGramPanchayats();
         }
     } else if (message.type === "hyperweather:mode") {
         weatherDifferenceMode = message.mode === "difference";

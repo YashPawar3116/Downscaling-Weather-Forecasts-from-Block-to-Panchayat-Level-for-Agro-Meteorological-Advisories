@@ -1,0 +1,76 @@
+{
+  "location": [
+    "Maharashtra",
+    "Nashik",
+    "NIPHAD"
+  ],
+  "rule": "Remove only 100%-missing columns from already-cleaned copies.",
+  "datasets": {
+    "block_observations_daily": {
+      "input": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_observations_daily.csv",
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_observations_daily_model_features.csv",
+      "rows": 1845,
+      "columns_before": 52,
+      "columns_after": 52,
+      "removed_100pct_columns": [],
+      "rows_removed": 0,
+      "imputation": false,
+      "interpolation": false
+    },
+    "block_forecast_training_base": {
+      "input": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_forecast_training_base.csv",
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_forecast_training_base_model_features.csv",
+      "rows": 1004,
+      "columns_before": 139,
+      "columns_after": 139,
+      "removed_100pct_columns": [],
+      "rows_removed": 0,
+      "imputation": false,
+      "interpolation": false
+    },
+    "block_current_forecast": {
+      "input": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_current_forecast.csv",
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\block\\block_current_forecast_model_features.csv",
+      "rows": 7,
+      "columns_before": 21,
+      "columns_after": 21,
+      "removed_100pct_columns": [],
+      "rows_removed": 0,
+      "imputation": false,
+      "interpolation": false
+    },
+    "gp_merged_features": {
+      "input": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\gp\\gp_merged_features.csv",
+      "output": "D:\\Desktop\\SYLLABUS\\DOWNSCALING\\Downscaling-Weather-Forecasts-from-Block-to-Panchayat-Level-for-Agro-Meteorological-Advisories\\datasets\\cleaned\\Maharashtra\\Nashik\\NIPHAD\\gp\\gp_merged_features_model_features.csv",
+      "rows": 117,
+      "columns_before": 243,
+      "columns_after": 222,
+      "removed_100pct_columns": [
+        "sentinel2__NDVI_30d_change",
+        "sentinel1__s1_vv_db_ascending_mean",
+        "sentinel1__s1_vv_db_ascending_median",
+        "sentinel1__s1_vv_db_ascending_std",
+        "sentinel1__s1_vv_db_ascending_min",
+        "sentinel1__s1_vv_db_ascending_max",
+        "sentinel1__s1_vh_db_ascending_mean",
+        "sentinel1__s1_vh_db_ascending_median",
+        "sentinel1__s1_vh_db_ascending_std",
+        "sentinel1__s1_vh_db_ascending_min",
+        "sentinel1__s1_vh_db_ascending_max",
+        "sentinel1__s1_vv_vh_diff_db_ascending_mean",
+        "sentinel1__s1_vv_vh_diff_db_ascending_median",
+        "sentinel1__s1_vv_vh_diff_db_ascending_std",
+        "sentinel1__s1_vv_vh_diff_db_ascending_min",
+        "sentinel1__s1_vv_vh_diff_db_ascending_max",
+        "sentinel1__s1_incidence_angle_deg_ascending_mean",
+        "sentinel1__s1_incidence_angle_deg_ascending_median",
+        "sentinel1__s1_incidence_angle_deg_ascending_std",
+        "sentinel1__s1_incidence_angle_deg_ascending_min",
+        "sentinel1__s1_incidence_angle_deg_ascending_max"
+      ],
+      "rows_removed": 0,
+      "imputation": false,
+      "interpolation": false
+    }
+  }
+}
